@@ -49,9 +49,9 @@ void advanced_key_task(uint8_t ak_index, uint8_t index, uint8_t sw_state,
 
     advanced_key_unlocked = false;
 
-    const uint8_t current_profile = user_config_current_profile();
+    const uint8_t current_profile = user_config.current_profile;
     const advanced_key_config_t *config =
-        user_config_get_advanced_key_config(current_profile, ak_index);
+        &user_config.advanced_key_config[current_profile][ak_index];
 
     switch (config->type) {
     case ADVANCED_KEY_TAP_HOLD:

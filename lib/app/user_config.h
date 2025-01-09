@@ -188,6 +188,8 @@ typedef struct __attribute__((packed)) {
 _Static_assert(sizeof(user_config_t) <= EEPROM_BYTES,
                "User configuration size exceeds EEPROM size");
 
+extern user_config_t user_config;
+
 //--------------------------------------------------------------------+
 // User Configuration Macros
 //--------------------------------------------------------------------+
@@ -225,13 +227,6 @@ void user_config_init(void);
 void user_config_reset(void);
 
 /**
- * @brief Get the switch ID from the user configuration
- *
- * @return The switch ID
- */
-uint8_t user_config_sw_id(void);
-
-/**
  * @brief Set the switch ID in the user configuration
  *
  * @param sw_id The switch ID
@@ -241,13 +236,6 @@ uint8_t user_config_sw_id(void);
 void user_config_set_sw_id(uint8_t sw_id);
 
 /**
- * @brief Get the current profile from the user configuration
- *
- * @return The current profile
- */
-uint8_t user_config_current_profile(void);
-
-/**
  * @brief Set the current profile in the user configuration
  *
  * @param profile The profile
@@ -255,15 +243,6 @@ uint8_t user_config_current_profile(void);
  * @return none
  */
 void user_config_set_current_profile(uint8_t profile);
-
-/**
- * @brief Get the key configuration from the user configuration
- *
- * @param index The key index
- *
- * @return The key configuration
- */
-key_config_t *user_config_key_config(uint8_t profile, uint8_t index);
 
 /**
  * @brief Set the key configuration in the user configuration
@@ -278,17 +257,6 @@ void user_config_set_key_config(uint8_t profile, uint8_t index,
                                 const key_config_t *key_config);
 
 /**
- * @brief Get the keymap from the user configuration
- *
- * @param profile The profile
- * @param layer The layer
- * @param index The key index
- *
- * @return The keymap
- */
-uint16_t user_config_keymap(uint8_t profile, uint8_t layer, uint8_t index);
-
-/**
  * @brief Set the keymap in the user configuration
  *
  * @param profile The profile
@@ -300,17 +268,6 @@ uint16_t user_config_keymap(uint8_t profile, uint8_t layer, uint8_t index);
  */
 void user_config_set_keymap(uint8_t profile, uint8_t layer, uint8_t index,
                             uint16_t keycode);
-
-/**
- * @brief Get the advanced key configuration from the user configuration
- *
- * @param profile The profile
- * @param index The advanced key index
- *
- * @return The advanced key configuration
- */
-advanced_key_config_t *user_config_get_advanced_key_config(uint8_t profile,
-                                                           uint8_t index);
 
 /**
  * @brief Set the advanced key configuration in the user configuration

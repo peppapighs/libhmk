@@ -25,10 +25,6 @@
 // TinyUSB Vendor Callbacks
 //--------------------------------------------------------------------+
 
-// Not the best way to access the user configuration, but it saves us from
-// defining temporary buffers for each response.
-extern const user_config_t user_config;
-
 #if defined(ENABLE_WEB_CONFIGURATOR)
 static uint8_t request_buffer[VENDOR_REQUEST_BUFFER_SIZE];
 #endif

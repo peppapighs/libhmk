@@ -35,7 +35,7 @@ static uint32_t calibration_start_time;
 static switch_state_t switches[NUM_KEYS];
 
 void switch_init(void) {
-    const uint8_t sw_id = user_config_sw_id();
+    const uint8_t sw_id = user_config.sw_id;
     const uint16_t min_adc_value = calibration_initial_min(sw_id);
     const uint16_t max_adc_value =
         SAFE_ADC_ADD(min_adc_value, calibration_delta(sw_id));
@@ -96,7 +96,7 @@ void store_adc_value(uint8_t index, uint16_t adc_value) {
         adc_state->adc_value < adc_state->min_adc_value) {
         adc_state->min_adc_value = adc_state->adc_value;
         adc_state->max_adc_value = SAFE_ADC_ADD(
-            adc_state->min_adc_value, calibration_delta(user_config_sw_id()));
+            adc_state->min_adc_value, calibration_delta(user_config.sw_id));
     }
 }
 
@@ -212,13 +212,14 @@ __attribute__((weak)) uint8_t adc_state_to_distance(
 }
 
 void matrix_scan(void) {
-    const uint8_t sw_id = user_config_sw_id();
+    const uint8_t sw_id = user_config.sw_id;
     const uint8_t sw_dist = sw_distance[sw_id];
-    const uint8_t current_profile = user_config_current_profile();
+    const uint8_t current_profile = user_config.current_profile;
 
     for (uint32_t i = 0; i < NUM_KEYS; i++) {
         switch_state_t *sw = &switches[i];
-        const key_config_t *config = user_config_key_config(current_profile, i);
+        const key_config_t *config =
+            &user_config.key_config[current_profile][i];
 
         // WARNING: Copy the current ADC value to a local variable to prevent
         // data race in case the interrupt updates the ADC value in the middle

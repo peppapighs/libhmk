@@ -22,7 +22,6 @@
 #include "switches.h"
 
 extern const user_config_t default_user_config;
-// Non-static to allow intrusive access for the vendor class
 user_config_t user_config;
 
 /**
@@ -65,8 +64,6 @@ void user_config_reset(void) {
     // Save the rest of the user configuration
     eeprom_write(4, (uint8_t *)&user_config + 4, sizeof(user_config_t) - 4);
 }
-
-uint8_t user_config_sw_id(void) { return user_config.sw_id; }
 
 void user_config_set_sw_id(uint8_t sw_id) {
     if (sw_id >= SW_COUNT)
@@ -146,10 +143,6 @@ void user_config_set_sw_id(uint8_t sw_id) {
     eeprom_write(SW_ID_OFFSET, &user_config.sw_id, sizeof(uint8_t));
 }
 
-uint8_t user_config_current_profile(void) {
-    return user_config.current_profile;
-}
-
 void user_config_set_current_profile(uint8_t profile) {
     if (profile >= NUM_PROFILES)
         return;
@@ -161,10 +154,6 @@ void user_config_set_current_profile(uint8_t profile) {
     user_config_save_crc32();
     eeprom_write(CURRENT_PROFILE_OFFSET,
                  (uint8_t *)&user_config.current_profile, sizeof(uint8_t));
-}
-
-key_config_t *user_config_key_config(uint8_t profile, uint8_t index) {
-    return &user_config.key_config[profile][index];
 }
 
 void user_config_set_key_config(uint8_t profile, uint8_t index,
@@ -183,10 +172,6 @@ void user_config_set_key_config(uint8_t profile, uint8_t index,
                  sizeof(key_config_t));
 }
 
-uint16_t user_config_keymap(uint8_t profile, uint8_t layer, uint8_t index) {
-    return user_config.keymap[profile][layer][index];
-}
-
 void user_config_set_keymap(uint8_t profile, uint8_t layer, uint8_t index,
                             uint16_t keymap) {
     if (profile >= NUM_PROFILES || layer >= NUM_LAYERS || index >= NUM_KEYS)
@@ -200,11 +185,6 @@ void user_config_set_keymap(uint8_t profile, uint8_t layer, uint8_t index,
     eeprom_write(KEYMAP_OFFSET(profile, layer, index),
                  (uint8_t *)&user_config.keymap[profile][layer][index],
                  sizeof(uint16_t));
-}
-
-advanced_key_config_t *user_config_get_advanced_key_config(uint8_t profile,
-                                                           uint8_t index) {
-    return &user_config.advanced_key_config[profile][index];
 }
 
 void user_config_set_advanced_key_config(uint8_t profile, uint8_t index,

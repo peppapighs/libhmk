@@ -44,7 +44,7 @@ void layer_goto(uint8_t layer_num) { layer_mask = 1 << layer_num; }
 void set_default_layer(uint8_t layer_num) { default_layer_num = layer_num; }
 
 uint16_t get_keycode(uint8_t index) {
-    const uint8_t current_profile = user_config_current_profile();
+    const uint8_t current_profile = user_config.current_profile;
 
     // Find the highest active layer with a non-transparent keycode
     uint8_t mask = 1 << get_current_layer();
@@ -52,11 +52,11 @@ uint16_t get_keycode(uint8_t index) {
         if (!(layer_mask & mask))
             continue;
 
-        const uint16_t keycode = user_config_keymap(current_profile, i, index);
+        const uint16_t keycode = user_config.keymap[current_profile][i][index];
         if (keycode != KC_TRANSPARENT)
             return keycode;
     }
 
     // Otherwise, use the default layer
-    return user_config_keymap(current_profile, default_layer_num, index);
+    return user_config.keymap[current_profile][default_layer_num][index];
 }
