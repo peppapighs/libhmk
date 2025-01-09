@@ -18,18 +18,19 @@
 #include <memory.h>
 #include <stdbool.h>
 
+#include "advanced_keys.h"
 #include "board.h"
-#if defined(DEBUG)
-#include "debug.h"
-#endif
 #include "config.h"
 #include "hid.h"
 #include "keycodes.h"
 #include "layer.h"
 #include "switches.h"
-#include "tap_hold.h"
 #include "timer.h"
 #include "user_config.h"
+
+#if defined(DEBUG)
+#include "debug.h"
+#endif
 
 #if defined(DEBUG)
 static uint32_t debug_input_latency;
@@ -43,41 +44,6 @@ void layout_init(void) {
     should_send_reports = false;
     memset(active_keycodes, 0, sizeof(active_keycodes));
     memset(last_sw_states, 0, sizeof(last_sw_states));
-}
-
-/**
- * @brief Process an advanced key
- *
- * @param ak_index The index of the advanced key configuration
- * @param index The switch index
- * @param sw_state The current switch state
- *
- * @return none
- */
-static void layout_process_advanced_key(uint8_t ak_index, uint8_t index,
-                                        uint8_t sw_state) {
-    const uint8_t current_profile = user_config_current_profile();
-    const advanced_key_config_t *config =
-        user_config_get_advanced_key_config(current_profile, ak_index);
-
-    switch (config->type) {
-    case ADVANCED_KEY_NULL_BIND:
-        break;
-
-    case ADVANCED_KEY_DKS:
-        break;
-
-    case ADVANCED_KEY_TAP_HOLD:
-        if (sw_state && !last_sw_states[index])
-            tap_hold_register(ak_index, index, &config->th, timer_read());
-        break;
-
-    case ADVANCED_KEY_TOGGLE:
-        break;
-
-    default:
-        break;
-    }
 }
 
 void layout_task(void) {
@@ -109,7 +75,7 @@ void layout_task(void) {
     }
 
     if (matrix_changed || timer_elapsed(last_tick_event) > 0) {
-        tap_hold_task(has_press_event, has_release_event);
+        advanced_key_tick_task(has_press_event, has_release_event);
         last_tick_event = timer_read();
     }
 
@@ -122,8 +88,8 @@ void layout_task(void) {
             active_keycodes[i] = keycode;
 
             if (IS_ADVANCED_KEY_KEYCODE(keycode)) {
-                layout_process_advanced_key(SP_ADVANCED_KEY_GET_INDEX(keycode),
-                                            i, sw_state);
+                advanced_key_task(SP_ADVANCED_KEY_GET_INDEX(keycode), i,
+                                  sw_state, last_sw_states[i], timer_read());
             } else {
                 layout_key_press(keycode);
             }
@@ -133,8 +99,8 @@ void layout_task(void) {
             active_keycodes[i] = KC_NO;
 
             if (IS_ADVANCED_KEY_KEYCODE(keycode)) {
-                layout_process_advanced_key(SP_ADVANCED_KEY_GET_INDEX(keycode),
-                                            i, sw_state);
+                advanced_key_task(SP_ADVANCED_KEY_GET_INDEX(keycode), i,
+                                  sw_state, last_sw_states[i], timer_read());
             } else {
                 layout_key_release(keycode);
             }
@@ -142,8 +108,8 @@ void layout_task(void) {
             const uint16_t keycode = active_keycodes[i];
 
             if (IS_ADVANCED_KEY_KEYCODE(keycode))
-                layout_process_advanced_key(SP_ADVANCED_KEY_GET_INDEX(keycode),
-                                            i, sw_state);
+                advanced_key_task(SP_ADVANCED_KEY_GET_INDEX(keycode), i,
+                                  sw_state, last_sw_states[i], timer_read());
         }
 
         // Update the last switch state

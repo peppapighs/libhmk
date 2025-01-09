@@ -21,51 +21,53 @@
 #include "user_config.h"
 
 //--------------------------------------------------------------------+
-// Tap-Hold Types
+// Advanced Key Types
 //--------------------------------------------------------------------+
 
 typedef struct {
+    // The advanced key configuration. `NULL` if not registered.
+    const advanced_key_config_t *config;
     // The switch index
     uint8_t index;
-    // The tap-hold configuration. `NULL` if the data is empty.
-    const advanced_key_tap_hold_t *ak_th;
     // The time when the tap-hold event was registered
     uint32_t since;
-} tap_hold_data_t;
+} advanced_key_data_t;
 
 //--------------------------------------------------------------------+
-// Tap-Hold APIs
+// Advanced Key APIs
 //--------------------------------------------------------------------+
 
 /**
- * @brief Initialize the tap-hold module
+ * @brief Initialize the advanced key module
  *
  * @return none
  */
-void tap_hold_init(void);
+void advanced_key_init(void);
 
 /**
- * @brief Register a tap-hold key
+ * @brief Advanced key task
  *
  * @param ak_index The advanced key configuration index
  * @param index The switch index
- * @param ak_th The tap-hold configuration
- * @param since The time when the tap-hold key was registered
+ * @param sw_state The current switch state
+ * @param last_sw_state The last switch state
+ * @param since The time when the event was registered
  *
  * @return none
  */
-void tap_hold_register(uint8_t ak_index, uint8_t index,
-                       const advanced_key_tap_hold_t *ak_th, uint32_t since);
+void advanced_key_task(uint8_t ak_index, uint8_t index, uint8_t sw_state,
+                       uint8_t last_sw_state, uint32_t since);
 
 /**
- * @brief Tap-hold task
+ * @brief Tick task for the advanced key module
  *
  * This function is called after the matrix scan periodically and handles the
- * tap-hold logic. It will lock the tap-hold data while processing the events.
+ * tap-hold and toggle keys.
  *
  * @param has_press_event Whether there is a press event
  * @param has_release_event The bitmap of the release events
  *
  * @return none
  */
-void tap_hold_task(bool has_press_event, const uint32_t *has_release_event);
+void advanced_key_tick_task(bool has_press_event,
+                            const uint32_t *has_release_event);

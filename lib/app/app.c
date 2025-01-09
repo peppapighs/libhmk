@@ -16,6 +16,7 @@
 #include "app.h"
 
 #include "adc.h"
+#include "advanced_keys.h"
 #include "debug.h"
 #include "hardware.h"
 #include "hid.h"
@@ -23,7 +24,6 @@
 #include "layout.h"
 #include "post_hid_report.h"
 #include "switches.h"
-#include "tap_hold.h"
 #include "tusb.h"
 #include "user_config.h"
 
@@ -35,7 +35,7 @@ void app_init(void) {
     hid_init();
     layer_init();
     post_hid_report_init();
-    tap_hold_init();
+    advanced_key_init();
     layout_init();
 
     wait_for_switch_calibration();
