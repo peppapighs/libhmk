@@ -104,38 +104,39 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 #define NM                                                                     \
     {                                                                          \
-        .tapping_term = 200, .mode = KEY_MODE_NORMAL,                          \
-        .nm = {                                                                \
-            .actuation_distance = 40,                                          \
-            .bottom_out_distance = 68,                                         \
-        },                                                                     \
+        .mode = KEY_MODE_NORMAL,                                               \
+        .nm =                                                                  \
+            {                                                                  \
+                .actuation_distance = 40,                                      \
+            },                                                                 \
     }
 #define RT                                                                     \
     {                                                                          \
-        .tapping_term = 200, .mode = KEY_MODE_RAPID_TRIGGER,                   \
-        .rt = {                                                                \
-            .actuation_distance = 2,                                           \
-            .reset_distance = 2,                                               \
-            .rt_down_distance = 2,                                             \
-            .rt_up_distance = 2,                                               \
-        },                                                                     \
+        .mode = KEY_MODE_RAPID_TRIGGER,                                        \
+        .rt =                                                                  \
+            {                                                                  \
+                .actuation_distance = 2,                                       \
+                .rt_down_distance = 2,                                         \
+                .rt_up_distance = 2,                                           \
+                .continuous = false,                                           \
+            },                                                                 \
     }
 #define DIGITAL_KEY_CONFIG                                                     \
     {                                                                          \
-        NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,    \
-            NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,    \
-            NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,    \
-            NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,        \
+        NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,        \
+        NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,        \
+        NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,        \
+        NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,        \
     }
 #define ANALOG_KEY_CONFIG                                                      \
     {                                                                          \
-        NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, RT,    \
-            NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, RT, RT, RT, NM,    \
-            NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,    \
-            NM, NM, NM, NM, NM, RT, NM, NM, NM, NM, RT, NM, RT, RT, RT,        \
+        NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,        \
+        RT, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, RT, RT, RT,        \
+        NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM, NM,        \
+        NM, NM, NM, NM, NM, NM, RT, NM, NM, NM, NM, RT, NM, RT, RT, RT,        \
     }
 
-#define LT_VOLD LT(1, KC_VOLD)
+#define LT_VOLD AK(0)
 #define MGC_BTL SP_MAGIC_BOOTLOADER
 #define MGC_RBT SP_MAGIC_REBOOT
 #define MGC_FAC SP_MAGIC_FACTORY_RESET
@@ -154,42 +155,55 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
             KC_LCTL, KC_LGUI, KC_LALT, KC_SPC,  KC_RALT, KC_LEFT, KC_DOWN,     \
             KC_RGHT,                                                           \
         },                                                                     \
-            {                                                                  \
-                _______, KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   \
-                KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______, \
-                _______, PTO(0),  PTO(1),  PTO(2),  PTO(3),  _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, MGC_BTL, MGC_RBT, MGC_FAC, MGC_REC, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______,                                                       \
-            },                                                                 \
-            {                                                                  \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______,                                                       \
-            },                                                                 \
-            {                                                                  \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______, _______, _______, _______, _______, _______, _______, \
-                _______,                                                       \
-            },                                                                 \
+        {                                                                      \
+            _______, KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,       \
+            KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______,     \
+            _______, PTO(0),  PTO(1),  PTO(2),  PTO(3),  _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, MGC_BTL, MGC_RBT, MGC_FAC, MGC_REC, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______,                                                           \
+        },                                                                     \
+        {                                                                      \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______,                                                           \
+        },                                                                     \
+        {                                                                      \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______, _______, _______, _______, _______, _______, _______,     \
+            _______,                                                           \
+        },                                                                     \
+    }
+
+#define DEFAULT_ADVANCED_KEY_CONFIG                                            \
+    {                                                                          \
+        [0] = {                                                                \
+            .type = ADVANCED_KEY_TAP_HOLD,                                     \
+            .th =                                                              \
+                {                                                              \
+                    .tap_keycode = KC_VOLD,                                    \
+                    .hold_keycode = MO(1),                                     \
+                    .tapping_term = 200,                                       \
+                },                                                             \
+        }                                                                      \
     }
 
 const user_config_t default_user_config = {
@@ -197,7 +211,6 @@ const user_config_t default_user_config = {
     .version = USER_CONFIG_VERSION,
 
     .sw_id = SW_GATERON_MAGNETIC_JADE,
-    .tap_hold = TAP_HOLD_HOLD_ON_OTHER_KEY_PRESS,
     .current_profile = 0,
 
     .key_config =
@@ -213,5 +226,12 @@ const user_config_t default_user_config = {
             DEFAULT_KEYMAP,
             DEFAULT_KEYMAP,
             DEFAULT_KEYMAP,
+        },
+    .advanced_key_config =
+        {
+            DEFAULT_ADVANCED_KEY_CONFIG,
+            DEFAULT_ADVANCED_KEY_CONFIG,
+            DEFAULT_ADVANCED_KEY_CONFIG,
+            DEFAULT_ADVANCED_KEY_CONFIG,
         },
 };

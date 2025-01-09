@@ -210,42 +210,6 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
             }
             break;
 
-        case CLASS_REQUEST_TAP_HOLD:
-            switch (request->wValue) {
-            case CLASS_REQUEST_INDEX_GET:
-                if (stage == CONTROL_STAGE_SETUP) {
-                    const uint32_t len = sizeof(user_config.tap_hold);
-
-                    if (request->wLength < len)
-                        // Invalid response length
-                        return false;
-
-                    return tud_control_xfer(rhport, request,
-                                            (void *)&user_config.tap_hold, len);
-                }
-                // Nothing to do for DATA & ACK stages
-                return true;
-
-            case CLASS_REQUEST_INDEX_SET:
-                if (stage == CONTROL_STAGE_SETUP) {
-                    if (request->wLength != sizeof(user_config.tap_hold))
-                        // Invalid request length
-                        return false;
-
-                    return tud_control_xfer(rhport, request, request_buffer,
-                                            request->wLength);
-                } else if (stage == CONTROL_STAGE_DATA) {
-                    user_config_set_tap_hold(request_buffer[0]);
-                    return true;
-                }
-                // Nothing to do for ACK stage
-                return true;
-
-            default:
-                break;
-            }
-            break;
-
         case CLASS_REQUEST_KEY_CONFIG:
             switch (request->wValue) {
             case CLASS_REQUEST_INDEX_GET:
@@ -338,12 +302,12 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
             }
             break;
 
-        case CLASS_REQUEST_DKS_CONFIG:
+        case CLASS_REQUEST_ADVANCED_KEY_CONFIG:
             switch (request->wValue) {
             case CLASS_REQUEST_INDEX_GET:
                 if (stage == CONTROL_STAGE_SETUP) {
                     const uint32_t len =
-                        sizeof(user_config.dynamic_keystroke_config);
+                        sizeof(user_config.advanced_key_config);
 
                     if (request->wLength < len)
                         // Invalid response length
@@ -351,14 +315,15 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
 
                     return tud_control_xfer(
                         rhport, request,
-                        (void *)user_config.dynamic_keystroke_config, len);
+                        (void *)user_config.advanced_key_config, len);
                 }
                 // Nothing to do for DATA & ACK stages
                 return true;
 
             case CLASS_REQUEST_INDEX_SET:
                 if (stage == CONTROL_STAGE_SETUP) {
-                    if (request->wLength % sizeof(class_req_dks_config_t) !=
+                    if (request->wLength %
+                                sizeof(class_req_advanced_key_config_t) !=
                             0 ||
                         request->wLength > VENDOR_REQUEST_BUFFER_SIZE)
                         // Invalid request length
@@ -368,14 +333,15 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
                                             request->wLength);
                 } else if (stage == CONTROL_STAGE_DATA) {
                     const uint32_t num_reqs =
-                        request->wLength / sizeof(class_req_dks_config_t);
-                    const class_req_dks_config_t *reqs =
-                        (class_req_dks_config_t *)request_buffer;
+                        request->wLength /
+                        sizeof(class_req_advanced_key_config_t);
+                    const class_req_advanced_key_config_t *reqs =
+                        (class_req_advanced_key_config_t *)request_buffer;
 
                     for (uint32_t i = 0; i < num_reqs; i++)
-                        user_config_set_dynamic_keystroke_config(
+                        user_config_set_advanced_key_config(
                             reqs[i].profile, reqs[i].index,
-                            &reqs[i].dks_config);
+                            &reqs[i].advanced_key_config);
 
                     return true;
                 }

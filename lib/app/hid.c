@@ -16,7 +16,7 @@
 #include "hid.h"
 
 #include "keycodes.h"
-#include "layout.h"
+#include "post_hid_report.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
 
@@ -173,21 +173,19 @@ static bool hid_send_report(uint8_t starting_report_id) {
 
     // If no report was sent, it means we have no more reports to send and we
     // can run the post-HID-report task.
-    layout_post_hid_report_task();
+    post_hid_report_task();
     return false;
 }
 
-bool hid_send_reports(void) {
-    if (tud_suspended()) {
+void hid_send_reports(void) {
+    if (tud_suspended())
         // Wake up host if we are in suspend mode
         tud_remote_wakeup();
-        return false;
-    }
 
-    if (!tud_hid_ready())
-        return false;
+    while (!tud_hid_ready())
+        tud_task();
 
-    return hid_send_report(REPORT_ID_KEYBOARD);
+    hid_send_report(REPORT_ID_KEYBOARD);
 }
 
 //--------------------------------------------------------------------+

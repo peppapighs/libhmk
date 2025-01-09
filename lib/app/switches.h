@@ -47,19 +47,6 @@
     ((uint32_t)(a) + (b) < (1 << ADC_RESOLUTION) ? (a) + (b)                   \
                                                  : (1 << ADC_RESOLUTION) - 1)
 
-// If the switch travels down past the actuation distance
-#define IS_SW_PRESSED(sw_state, last_sw_state)                                 \
-    (((sw_state) & 1) && !((last_sw_state) & 1))
-// If the switch travels up past the actuation distance
-#define IS_SW_RELEASED(sw_state, last_sw_state)                                \
-    (!((sw_state) & 1) && ((last_sw_state) & 1))
-// If the switch travels down past the bottom-out distance
-#define IS_SW_PRESSED_BOTTOMED_OUT(sw_state, last_sw_state)                    \
-    (((sw_state) & 2) && !((last_sw_state) & 2))
-// If the switch travels up past the bottom-out distance
-#define IS_SW_RELEASED_BOTTOMED_OUT(sw_state, last_sw_state)                   \
-    (!((sw_state) & 2) && ((last_sw_state) & 2))
-
 //--------------------------------------------------------------------+
 // Switch Types
 //--------------------------------------------------------------------+
@@ -88,9 +75,7 @@ typedef struct {
 
     // Only used by rapid trigger and dynamic keystroke
     uint8_t sw_dir;
-    // Bit 0: 1 if the switch is pressed, 0 otherwise
-    // Bit 1: 1 if the switch reached the bottom-out distance, 0 otherwise. Only
-    // used by dynamic keystroke
+    // 0: Not pressed, 1: Pressed
     uint8_t sw_state;
 } switch_state_t;
 
@@ -173,12 +158,12 @@ void switch_recalibrate(void);
  * exponential smoothing is performed here. If the calibration is not finished,
  * the ADC value will also be used to calibrate the switch.
  *
- * @param index The index of the switch
+ * @param index The switch index
  * @param adc_value The ADC value of the switch
  *
  * @return none
  */
-void store_adc_value(uint16_t index, uint16_t adc_value);
+void store_adc_value(uint8_t index, uint16_t adc_value);
 
 /**
  * @brief Calculate the switch travel distance from the ADC value of the switch
@@ -208,26 +193,26 @@ void matrix_scan(void);
 /**
  * @brief Get the ADC value of the switch
  *
- * @param index The index of the switch
+ * @param index The switch index
  *
  * @return The ADC value of the switch
  */
-uint16_t get_switch_adc_value(uint16_t index);
+uint16_t get_switch_adc_value(uint8_t index);
 
 /**
  * @brief Get the switch distance
  *
- * @param index The index of the switch
+ * @param index The switch index
  *
  * @return The switch distance
  */
-uint8_t get_switch_distance(uint16_t index);
+uint8_t get_switch_distance(uint8_t index);
 
 /**
  * @brief Get the switch state
  *
- * @param index The index of the switch
+ * @param index The switch index
  *
  * @return The switch state
  */
-uint8_t get_switch_state(uint16_t index);
+uint8_t get_switch_state(uint8_t index);

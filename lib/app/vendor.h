@@ -54,10 +54,9 @@ enum {
     CLASS_REQUEST_RECALIBRATE,
     CLASS_REQUEST_SWITCH_DEBUG,
     CLASS_REQUEST_SW_ID,
-    CLASS_REQUEST_TAP_HOLD,
     CLASS_REQUEST_KEY_CONFIG,
     CLASS_REQUEST_KEYMAP,
-    CLASS_REQUEST_DKS_CONFIG,
+    CLASS_REQUEST_ADVANCED_KEY_CONFIG,
 };
 
 enum {
@@ -76,19 +75,19 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     uint8_t profile;
-    uint16_t index;
+    uint8_t index;
     key_config_t key_config;
 } class_req_key_config_t;
 
 typedef struct __attribute__((packed)) {
     uint8_t profile;
     uint8_t layer;
-    uint16_t index;
+    uint8_t index;
     uint16_t keycode;
 } class_req_keymap_t;
 
 typedef struct __attribute__((packed)) {
     uint8_t profile;
     uint8_t index;
-    dynamic_keystroke_config_t dks_config;
-} class_req_dks_config_t;
+    advanced_key_config_t advanced_key_config;
+} class_req_advanced_key_config_t;

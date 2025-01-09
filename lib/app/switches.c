@@ -78,7 +78,7 @@ void switch_recalibrate(void) {
     wait_for_switch_calibration();
 }
 
-void store_adc_value(uint16_t index, uint16_t adc_value) {
+void store_adc_value(uint8_t index, uint16_t adc_value) {
     if (index >= NUM_KEYS)
         return;
 
@@ -236,15 +236,14 @@ void matrix_scan(void) {
         case KEY_MODE_NORMAL:
             const key_mode_normal_t *nm = &config->nm;
 
-            sw->sw_state =
-                // If the switch reached the actuation distance
-                ((uint8_t)(sw->distance >= nm->actuation_distance) |
-                 // If the switch reached the bottom-out distance
-                 ((uint8_t)(sw->distance >= nm->bottom_out_distance) << 1));
+            // If the switch reached the actuation distance
+            sw->sw_state = (sw->distance >= nm->actuation_distance);
             break;
 
         case KEY_MODE_RAPID_TRIGGER:
             const key_mode_rapid_trigger_t *rt = &config->rt;
+            const uint8_t reset_distance =
+                rt->continuous ? 0 : nm->actuation_distance;
 
             switch (sw->sw_dir) {
             case SW_DIR_NONE:
@@ -257,7 +256,7 @@ void matrix_scan(void) {
                 break;
 
             case SW_DIR_DOWN:
-                if (sw->distance <= rt->reset_distance) {
+                if (sw->distance <= reset_distance) {
                     // Travel up past the reset distance
                     sw->sw_dir = SW_DIR_NONE;
                     sw->peek_distance = sw->distance;
@@ -274,7 +273,7 @@ void matrix_scan(void) {
                 break;
 
             case SW_DIR_UP:
-                if (sw->distance <= rt->reset_distance) {
+                if (sw->distance <= reset_distance) {
                     // Travel up past the reset distance
                     sw->sw_dir = SW_DIR_NONE;
                     sw->peek_distance = sw->distance;
@@ -301,21 +300,21 @@ void matrix_scan(void) {
     }
 }
 
-uint16_t get_switch_adc_value(uint16_t index) {
+uint16_t get_switch_adc_value(uint8_t index) {
     if (index >= NUM_KEYS)
         return 0;
 
     return switches[index].adc_state.adc_value;
 }
 
-uint8_t get_switch_distance(uint16_t index) {
+uint8_t get_switch_distance(uint8_t index) {
     if (index >= NUM_KEYS)
         return 0;
 
     return switches[index].distance;
 }
 
-uint8_t get_switch_state(uint16_t index) {
+uint8_t get_switch_state(uint8_t index) {
     if (index >= NUM_KEYS)
         return 0;
 

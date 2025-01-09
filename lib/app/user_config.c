@@ -80,6 +80,7 @@ void user_config_set_sw_id(uint8_t sw_id) {
     // Ensure the key configurations are within the switch's travel distance
     const uint16_t distance = sw_distance[sw_id];
     for (uint32_t i = 0; i < NUM_PROFILES; i++) {
+        // Key configurations
         for (uint32_t j = 0; j < NUM_KEYS; j++) {
             key_config_t *config = &user_config.key_config[i][j];
             bool changed = false;
@@ -90,19 +91,11 @@ void user_config_set_sw_id(uint8_t sw_id) {
                     config->nm.actuation_distance = distance;
                     changed = true;
                 }
-                if (config->nm.bottom_out_distance > distance) {
-                    config->nm.bottom_out_distance = distance;
-                    changed = true;
-                }
                 break;
 
             case KEY_MODE_RAPID_TRIGGER:
                 if (config->rt.actuation_distance > distance) {
                     config->rt.actuation_distance = distance;
-                    changed = true;
-                }
-                if (config->rt.reset_distance > distance) {
-                    config->rt.reset_distance = distance;
                     changed = true;
                 }
                 if (config->rt.rt_down_distance > distance) {
@@ -124,24 +117,33 @@ void user_config_set_sw_id(uint8_t sw_id) {
                 eeprom_write(KEY_CONFIG_OFFSET(i, j), (uint8_t *)config,
                              sizeof(key_config_t));
         }
+        // Advanced key configurations
+        for (uint32_t j = 0; j < NUM_ADVANCED_KEY_BINDINGS; j++) {
+            advanced_key_config_t *config =
+                &user_config.advanced_key_config[i][j];
+            bool changed = false;
+
+            switch (config->type) {
+            case ADVANCED_KEY_DKS:
+                if (config->dks.bottom_out_distance > distance) {
+                    config->dks.bottom_out_distance = distance;
+                    changed = true;
+                }
+                break;
+
+            default:
+                break;
+            }
+
+            if (changed)
+                // Only save the advanced key configuration if it was changed
+                eeprom_write(ADVANCED_KEY_CONFIG_OFFSET(i, j),
+                             (uint8_t *)config, sizeof(advanced_key_config_t));
+        }
     }
 
     user_config_save_crc32();
     eeprom_write(SW_ID_OFFSET, &user_config.sw_id, sizeof(uint8_t));
-}
-
-uint8_t user_config_tap_hold(void) { return user_config.tap_hold; }
-
-void user_config_set_tap_hold(uint8_t tap_hold) {
-    if (tap_hold >= TAP_HOLD_COUNT)
-        return;
-
-    if (user_config.tap_hold == tap_hold)
-        return;
-
-    user_config.tap_hold = tap_hold;
-    user_config_save_crc32();
-    eeprom_write(TAP_HOLD_OFFSET, &user_config.tap_hold, sizeof(uint8_t));
 }
 
 uint8_t user_config_current_profile(void) {
@@ -161,11 +163,11 @@ void user_config_set_current_profile(uint8_t profile) {
                  (uint8_t *)&user_config.current_profile, sizeof(uint8_t));
 }
 
-key_config_t *user_config_key_config(uint8_t profile, uint16_t index) {
+key_config_t *user_config_key_config(uint8_t profile, uint8_t index) {
     return &user_config.key_config[profile][index];
 }
 
-void user_config_set_key_config(uint8_t profile, uint16_t index,
+void user_config_set_key_config(uint8_t profile, uint8_t index,
                                 const key_config_t *key_config) {
     if (profile >= NUM_PROFILES || index >= NUM_KEYS)
         return;
@@ -181,11 +183,11 @@ void user_config_set_key_config(uint8_t profile, uint16_t index,
                  sizeof(key_config_t));
 }
 
-uint16_t user_config_keymap(uint8_t profile, uint8_t layer, uint16_t index) {
+uint16_t user_config_keymap(uint8_t profile, uint8_t layer, uint8_t index) {
     return user_config.keymap[profile][layer][index];
 }
 
-void user_config_set_keymap(uint8_t profile, uint8_t layer, uint16_t index,
+void user_config_set_keymap(uint8_t profile, uint8_t layer, uint8_t index,
                             uint16_t keymap) {
     if (profile >= NUM_PROFILES || layer >= NUM_LAYERS || index >= NUM_KEYS)
         return;
@@ -200,24 +202,23 @@ void user_config_set_keymap(uint8_t profile, uint8_t layer, uint16_t index,
                  sizeof(uint16_t));
 }
 
-dynamic_keystroke_config_t *
-user_config_dynamic_keystroke_config(uint8_t profile, uint8_t index) {
-    return &user_config.dynamic_keystroke_config[profile][index];
+advanced_key_config_t *user_config_get_advanced_key_config(uint8_t profile,
+                                                           uint8_t index) {
+    return &user_config.advanced_key_config[profile][index];
 }
 
-void user_config_set_dynamic_keystroke_config(
-    uint8_t profile, uint8_t index, const dynamic_keystroke_config_t *config) {
-    if (profile >= NUM_PROFILES || index >= NUM_DYNAMIC_KEYSTROKE_CONFIGS)
+void user_config_set_advanced_key_config(uint8_t profile, uint8_t index,
+                                         const advanced_key_config_t *config) {
+    if (profile >= NUM_PROFILES || index >= NUM_ADVANCED_KEY_BINDINGS)
         return;
 
-    if (memcmp(&user_config.dynamic_keystroke_config[profile][index], config,
-               sizeof(dynamic_keystroke_config_t)) == 0)
+    if (memcmp(&user_config.advanced_key_config[profile][index], config,
+               sizeof(advanced_key_config_t)) == 0)
         return;
 
-    user_config.dynamic_keystroke_config[profile][index] = *config;
+    user_config.advanced_key_config[profile][index] = *config;
     user_config_save_crc32();
-    eeprom_write(
-        DYNAMIC_KEYSTROKE_CONFIG_OFFSET(profile, index),
-        (uint8_t *)&user_config.dynamic_keystroke_config[profile][index],
-        sizeof(dynamic_keystroke_config_t));
+    eeprom_write(ADVANCED_KEY_CONFIG_OFFSET(profile, index),
+                 (uint8_t *)&user_config.advanced_key_config[profile][index],
+                 sizeof(advanced_key_config_t));
 }

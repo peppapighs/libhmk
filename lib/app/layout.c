@@ -13,570 +13,216 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "layout_internal.h"
+#include "layout.h"
 
 #include <memory.h>
+#include <stdbool.h>
 
 #include "board.h"
+#if defined(DEBUG)
+#include "debug.h"
+#endif
+#include "config.h"
 #include "hid.h"
 #include "keycodes.h"
+#include "layer.h"
 #include "switches.h"
+#include "tap_hold.h"
 #include "timer.h"
 #include "user_config.h"
 
+#if defined(DEBUG)
+static uint32_t debug_input_latency;
+#endif
+
+static bool should_send_reports;
 static uint16_t active_keycodes[NUM_KEYS];
 static uint8_t last_sw_states[NUM_KEYS];
 
 void layout_init(void) {
+    should_send_reports = false;
     memset(active_keycodes, 0, sizeof(active_keycodes));
     memset(last_sw_states, 0, sizeof(last_sw_states));
+}
 
-    layout_layer_init();
-    layout_event_init();
-    layout_tap_hold_event_init();
-    layout_post_hid_report_event_init();
+/**
+ * @brief Process an advanced key
+ *
+ * @param ak_index The index of the advanced key configuration
+ * @param index The switch index
+ * @param sw_state The current switch state
+ *
+ * @return none
+ */
+static void layout_process_advanced_key(uint8_t ak_index, uint8_t index,
+                                        uint8_t sw_state) {
+    const uint8_t current_profile = user_config_current_profile();
+    const advanced_key_config_t *config =
+        user_config_get_advanced_key_config(current_profile, ak_index);
+
+    switch (config->type) {
+    case ADVANCED_KEY_NULL_BIND:
+        break;
+
+    case ADVANCED_KEY_DKS:
+        break;
+
+    case ADVANCED_KEY_TAP_HOLD:
+        if (sw_state && !last_sw_states[index])
+            tap_hold_register(ak_index, index, &config->th, timer_read());
+        break;
+
+    case ADVANCED_KEY_TOGGLE:
+        break;
+
+    default:
+        break;
+    }
 }
 
 void layout_task(void) {
     static uint32_t last_tick_event = 0;
+    static uint32_t has_release_event[(NUM_KEYS + 31) / 32];
+
+#if defined(DEBUG)
+    uint32_t debug_start = debug_get_counter();
+#endif
 
     matrix_scan();
 
     bool matrix_changed = false;
+    bool has_press_event = false;
+
+    // Clear the bitmap
+    for (uint32_t i = 0; i < (NUM_KEYS + 31) / 32; i++)
+        has_release_event[i] = 0;
+
+    // Check if there are any pressed/released events
     for (uint32_t i = 0; i < NUM_KEYS; i++) {
         const uint8_t sw_state = get_switch_state(i);
 
         if (sw_state != last_sw_states[i]) {
-            layout_event_push(i, sw_state);
             matrix_changed = true;
+            has_press_event |= sw_state;
+            has_release_event[i >> 5] |= (uint32_t)(!sw_state) << (i & 0x1F);
         }
     }
 
     if (matrix_changed || timer_elapsed(last_tick_event) > 0) {
-        layout_tick_event();
+        tap_hold_task(has_press_event, has_release_event);
         last_tick_event = timer_read();
-
-        if (matrix_changed)
-            layout_process_events();
-
-        hid_send_reports();
-    }
-}
-
-void layout_post_hid_report_task(void) {
-    layout_process_post_hid_report_events();
-}
-
-//--------------------------------------------------------------------+
-// Layer APIs
-//--------------------------------------------------------------------+
-
-static uint8_t default_layer_num;
-static uint16_t layer_mask;
-
-void layout_layer_init(void) {
-    default_layer_num = 0;
-    layer_mask = 0;
-}
-
-uint8_t get_current_layer(void) {
-    if (!layer_mask)
-        return default_layer_num;
-
-    return 31 - __builtin_clz(layer_mask);
-}
-
-void layer_on(uint8_t layer_num) { layer_mask |= 1 << layer_num; }
-
-void layer_off(uint8_t layer_num) { layer_mask &= ~(1 << layer_num); }
-
-void layer_toggle(uint8_t layer_num) { layer_mask ^= 1 << layer_num; }
-
-void layer_goto(uint8_t layer_num) { layer_mask = 1 << layer_num; }
-
-void set_default_layer(uint8_t layer_num) { default_layer_num = layer_num; }
-
-uint16_t get_keycode(uint16_t index) {
-    const uint8_t current_profile = user_config_current_profile();
-
-    // Find the highest active layer with a non-transparent keycode
-    uint8_t mask = 1 << get_current_layer();
-    for (uint8_t i = get_current_layer() + 1; i-- > 0; mask >>= 1) {
-        if (!(layer_mask & mask))
-            continue;
-
-        const uint16_t keycode = user_config_keymap(current_profile, i, index);
-        if (keycode != KC_TRANSPARENT)
-            return keycode;
     }
 
-    // Otherwise, use the default layer
-    return user_config_keymap(current_profile, default_layer_num, index);
-}
+    for (uint32_t i = 0; i < NUM_KEYS; i++) {
+        const uint8_t sw_state = get_switch_state(i);
 
-//--------------------------------------------------------------------+
-// Layout APIs
-//--------------------------------------------------------------------+
+        if (sw_state && !last_sw_states[i]) {
+            // Key press event
+            const uint16_t keycode = get_keycode(i);
+            active_keycodes[i] = keycode;
 
-static bool pending_event_unlocked;
-static uint32_t pending_event_head, num_pending_events;
-static layout_event_t pending_events[MAX_PENDING_EVENTS];
-
-#define PENDING_EVENT_FOREACH(i, event, block)                                 \
-    do {                                                                       \
-        pending_event_unlocked = false;                                        \
-        for (uint32_t(i) = 0; (i) < num_pending_events; (i)++) {               \
-            const layout_event_t *(event) =                                    \
-                &pending_events[(pending_event_head + (i)) &                   \
-                                (MAX_PENDING_EVENTS - 1)];                     \
-            (block);                                                           \
-        }                                                                      \
-        pending_event_unlocked = true;                                         \
-    } while (0)
-
-void layout_event_init(void) {
-    pending_event_unlocked = true;
-    pending_event_head = 0;
-    num_pending_events = 0;
-    memset(pending_events, 0, sizeof(pending_events));
-}
-
-void layout_event_push(uint16_t index, uint8_t sw_state) {
-    if (!pending_event_unlocked)
-        return;
-
-    pending_event_unlocked = false;
-
-    if (num_pending_events == MAX_PENDING_EVENTS) {
-        // The event queue is full
-        pending_event_head =
-            (pending_event_head + 1) & (MAX_PENDING_EVENTS - 1);
-        num_pending_events--;
-    }
-
-    const uint32_t pending_event_tail =
-        (pending_event_head + num_pending_events) & (MAX_PENDING_EVENTS - 1);
-    pending_events[pending_event_tail].index = index;
-    pending_events[pending_event_tail].sw_state = sw_state;
-    num_pending_events++;
-
-    pending_event_unlocked = true;
-}
-
-void layout_process_dks(uint16_t index, uint8_t config_num, uint8_t sw_state,
-                        uint8_t last_sw_state) {
-    if (config_num >= NUM_DYNAMIC_KEYSTROKE_CONFIGS)
-        return;
-
-    const dynamic_keystroke_config_t *config =
-        user_config_dynamic_keystroke_config(user_config_current_profile(),
-                                             config_num);
-
-    for (uint32_t i = 0; i < 4; i++) {
-        const uint8_t keycode = config->keycode[i];
-        const dynamic_keystroke_mask_t *mask = &config->mask[i];
-
-        if (keycode == KC_NO || mask == 0)
-            continue;
-
-        // The keycode should be removed first if it is active from the previous
-        // DKS event and should be relased before this event.
-        bool should_remove_keycode = false;
-        uint8_t current_config;
-
-        if (IS_SW_PRESSED(sw_state, last_sw_state) ||
-            IS_SW_PRESSED_BOTTOMED_OUT(sw_state, last_sw_state)) {
-            should_remove_keycode = true;
-            current_config = 0;
-
-            if (IS_SW_PRESSED(sw_state, last_sw_state)) {
-                // We press the switch for the first time so no need to remove
-                // the keycode.
-                should_remove_keycode = false;
-                current_config = mask->config0;
+            if (IS_ADVANCED_KEY_KEYCODE(keycode)) {
+                layout_process_advanced_key(SP_ADVANCED_KEY_GET_INDEX(keycode),
+                                            i, sw_state);
+            } else {
+                layout_key_press(keycode);
             }
-            if (IS_SW_PRESSED_BOTTOMED_OUT(sw_state, last_sw_state)) {
-                // If the switch is pressed and bottomed out at the same time,
-                // no need to remove the keycode.
-                if (should_remove_keycode)
-                    should_remove_keycode = (mask->config0 == 2);
-                // If the switch is pressed and bottomed out at the same time
-                // and the pressed action is to hold the key beyond the
-                // bottom-out distance, ignore the bottom-out action.
-                current_config =
-                    current_config > 2 ? current_config : mask->config1;
-            }
-        } else if (IS_SW_RELEASED(sw_state, last_sw_state)) {
-            // Consider key fully release before key releasing from bottom-out
-            // so that if both events are triggered at the same time, always
-            // consider the key fully released action.
-            should_remove_keycode = true;
-            current_config = mask->config3;
-        } else if (IS_SW_RELEASED_BOTTOMED_OUT(sw_state, last_sw_state)) {
-            // Only release the key if the previous actions hold the key up
-            // until this point.
-            should_remove_keycode = (mask->config0 == 3 || mask->config1 == 2);
-            current_config = mask->config2;
-        } else {
-            // Should be unreachable
-            continue;
-        }
+        } else if (!sw_state && last_sw_states[i]) {
+            // Key release event
+            const uint16_t keycode = active_keycodes[i];
+            active_keycodes[i] = KC_NO;
 
-        if (should_remove_keycode) {
-            hid_remove_keycode(keycode);
-            if (current_config == 1)
-                // Tap action
-                layout_post_hid_report_event_push(index, keycode,
-                                                  POST_HID_REPORT_ACTION_TAP);
-            else if (current_config > 1)
-                // Hold action
-                layout_post_hid_report_event_push(index, keycode,
-                                                  POST_HID_REPORT_ACTION_ADD);
-        } else {
-            if (current_config == 1)
-                // Tap action
-                layout_process_tap_action(index, keycode);
-            else if (current_config > 1)
-                // Hold action
-                hid_add_keycode(keycode);
-        }
-    }
-}
-
-void layout_process_magic_keycode(uint16_t keycode) {
-    switch (keycode) {
-#if defined(ENABLE_BOOTLOADER)
-    case SP_MAGIC_BOOTLOADER:
-        board_enter_bootloader();
-        break;
-#endif
-
-    case SP_MAGIC_REBOOT:
-        board_reset();
-        break;
-
-    case SP_MAGIC_FACTORY_RESET:
-        user_config_reset();
-        break;
-
-    case SP_MAGIC_RECALIBRATE:
-        switch_recalibrate();
-        break;
-
-    default:
-        break;
-    }
-}
-
-void layout_process_events(void) {
-    PENDING_EVENT_FOREACH(i, event, {
-        if (IS_SW_PRESSED(event->sw_state, last_sw_states[event->index])) {
-            uint16_t keycode = get_keycode(event->index);
-            active_keycodes[event->index] = keycode;
-
-            if (IS_HID_KEYCODE(keycode)) {
-                hid_add_keycode(keycode);
-            } else if (IS_MODS_KEYCODE(keycode)) {
-                hid_add_keycode(SP_MODS_GET_KEY(keycode));
-                hid_add_modifier(SP_MODS_GET_MODS(keycode));
-            } else if (IS_MOD_TAP_KEYCODE(keycode)) {
-                layout_tap_hold_event_push(event->index, keycode);
-            } else if (IS_LAYER_TAP_KEYCODE(keycode)) {
-                layout_tap_hold_event_push(event->index, keycode);
-            } else if (IS_LAYER_MOD_KEYCODE(keycode)) {
-                hid_add_modifier(SP_LAYER_MOD_GET_MODS(keycode));
-                layer_on(SP_LAYER_MOD_GET_LAYER(keycode));
-            } else if (IS_LAYER_TO_KEYCODE(keycode)) {
-                layer_goto(SP_LAYER_TO_GET_LAYER(keycode));
-            } else if (IS_LAYER_MO_KEYCODE(keycode)) {
-                layer_on(SP_LAYER_MO_GET_LAYER(keycode));
-            } else if (IS_LAYER_DEF_KEYCODE(keycode)) {
-                set_default_layer(SP_LAYER_DEF_GET_LAYER(keycode));
-            } else if (IS_LAYER_TOGGLE_KEYCODE(keycode)) {
-                layer_toggle(SP_LAYER_TOGGLE_GET_LAYER(keycode));
-            } else if (IS_PROFILE_TO_KEYCODE(keycode)) {
-                user_config_set_current_profile(
-                    SP_PROFILE_TO_GET_PROFILE(keycode));
-            } else if (IS_DKS_KEYCODE(keycode)) {
-                layout_process_dks(event->index, SP_DKS_GET_CONFIG(keycode),
-                                   event->sw_state,
-                                   last_sw_states[event->index]);
-            } else if (IS_MAGIC_KEYCODE(keycode)) {
-                layout_process_magic_keycode(keycode);
-            }
-        } else if (IS_SW_RELEASED(event->sw_state,
-                                  last_sw_states[event->index])) {
-            uint16_t keycode = active_keycodes[event->index];
-            active_keycodes[event->index] = KC_NO;
-
-            if (IS_HID_KEYCODE(keycode)) {
-                hid_remove_keycode(keycode);
-            } else if (IS_MODS_KEYCODE(keycode)) {
-                hid_remove_keycode(SP_MODS_GET_KEY(keycode));
-                hid_remove_modifier(SP_MODS_GET_MODS(keycode));
-            } else if (IS_MOD_TAP_KEYCODE(keycode)) {
-                // Nothing to do
-            } else if (IS_LAYER_TAP_KEYCODE(keycode)) {
-                // Nothing to do
-            } else if (IS_LAYER_MOD_KEYCODE(keycode)) {
-                hid_remove_modifier(SP_LAYER_MOD_GET_MODS(keycode));
-                layer_off(SP_LAYER_MOD_GET_LAYER(keycode));
-            } else if (IS_LAYER_TO_KEYCODE(keycode)) {
-                // Nothing to do
-            } else if (IS_LAYER_MO_KEYCODE(keycode)) {
-                layer_off(SP_LAYER_MO_GET_LAYER(keycode));
-            } else if (IS_LAYER_DEF_KEYCODE(keycode)) {
-                // Nothing to do
-            } else if (IS_LAYER_TOGGLE_KEYCODE(keycode)) {
-                // Nothing to do
-            } else if (IS_PROFILE_TO_KEYCODE(keycode)) {
-                // Nothing to do
-            } else if (IS_DKS_KEYCODE(keycode)) {
-                layout_process_dks(event->index, SP_DKS_GET_CONFIG(keycode),
-                                   event->sw_state,
-                                   last_sw_states[event->index]);
-            } else if (IS_MAGIC_KEYCODE(keycode)) {
-                // Nothing to do
+            if (IS_ADVANCED_KEY_KEYCODE(keycode)) {
+                layout_process_advanced_key(SP_ADVANCED_KEY_GET_INDEX(keycode),
+                                            i, sw_state);
+            } else {
+                layout_key_release(keycode);
             }
         } else {
-            uint16_t keycode = active_keycodes[event->index];
+            const uint16_t keycode = active_keycodes[i];
 
-            if (IS_DKS_KEYCODE(keycode)) {
-                layout_process_dks(event->index, SP_DKS_GET_CONFIG(keycode),
-                                   event->sw_state,
-                                   last_sw_states[event->index]);
-            }
+            if (IS_ADVANCED_KEY_KEYCODE(keycode))
+                layout_process_advanced_key(SP_ADVANCED_KEY_GET_INDEX(keycode),
+                                            i, sw_state);
         }
 
         // Update the last switch state
-        last_sw_states[event->index] = event->sw_state;
-    });
-
-    // Clear the event queue
-    pending_event_head = 0;
-    num_pending_events = 0;
-}
-
-//--------------------------------------------------------------------+
-// Tap-Hold APIs
-//--------------------------------------------------------------------+
-
-static bool tap_hold_event_unlocked;
-static uint32_t num_tap_hold_events;
-static layout_tap_hold_event_t tap_hold_events[MAX_TAP_HOLD_EVENTS];
-
-#define TAP_HOLD_EVENT_FOREACH(i, event, block)                                \
-    do {                                                                       \
-        tap_hold_event_unlocked = false;                                       \
-        for (uint32_t(i) = 0; (i) < num_tap_hold_events; (i)++) {              \
-            const layout_tap_hold_event_t *(event) = &tap_hold_events[(i)];    \
-            (block);                                                           \
-        }                                                                      \
-        tap_hold_event_unlocked = true;                                        \
-    } while (0)
-
-void layout_tap_hold_event_init(void) {
-    tap_hold_event_unlocked = true;
-    num_tap_hold_events = 0;
-    memset(tap_hold_events, 0, sizeof(tap_hold_events));
-}
-
-void layout_tap_hold_event_push(uint16_t index, uint16_t keycode) {
-    if (!tap_hold_event_unlocked || num_tap_hold_events == MAX_TAP_HOLD_EVENTS)
-        return;
-
-    tap_hold_event_unlocked = false;
-
-    tap_hold_events[num_tap_hold_events].index = index;
-    tap_hold_events[num_tap_hold_events].keycode = keycode;
-    tap_hold_events[num_tap_hold_events].since = timer_read();
-    num_tap_hold_events++;
-
-    tap_hold_event_unlocked = true;
-}
-
-void layout_process_tap_action(uint16_t index, uint16_t keycode) {
-    uint16_t tap_keycode;
-
-    if (IS_HID_KEYCODE(keycode))
-        tap_keycode = keycode;
-    else if (IS_MOD_TAP_KEYCODE(keycode))
-        tap_keycode = SP_MOD_TAP_GET_KEY(keycode);
-    else if (IS_LAYER_TAP_KEYCODE(keycode))
-        tap_keycode = SP_LAYER_TAP_GET_KEY(keycode);
-    else
-        // Tap action is not supported
-        return;
-
-    hid_add_keycode(tap_keycode);
-    // Remove the tap key after the next report
-    layout_post_hid_report_event_push(index, tap_keycode,
-                                      POST_HID_REPORT_ACTION_REMOVE);
-}
-
-void layout_process_hold_action(uint16_t index, uint16_t keycode) {
-    if (IS_MOD_TAP_KEYCODE(keycode)) {
-        // Same behavior as a modifier-mask empty keycode
-        active_keycodes[index] = SP_MOD_TAP_TO_MODS(keycode);
-        hid_add_modifier(SP_MOD_TAP_GET_MODS(keycode));
-    } else if (IS_LAYER_TAP_KEYCODE(keycode)) {
-        // Same behavior as a layer-momentary keycode
-        active_keycodes[index] = SP_LAYER_TAP_TO_MO(keycode);
-        layer_on(SP_LAYER_TAP_GET_LAYER(keycode));
+        last_sw_states[i] = sw_state;
     }
+
+    if (should_send_reports) {
+        hid_send_reports();
+        should_send_reports = false;
+    }
+
+#if defined(DEBUG)
+    debug_input_latency = DEBUG_COUNTER_DIFF(debug_get_counter(), debug_start);
+#endif
 }
 
-void layout_tick_event(void) {
-    // Bitmap to check if a key has a pending release event
-    static uint32_t has_release_events[(NUM_KEYS + 31) / 32];
+void layout_should_send_reports(void) { should_send_reports = true; }
 
-    const uint8_t current_profile = user_config_current_profile();
-    const uint8_t tap_hold = user_config_tap_hold();
+void layout_set_active_keycode(uint8_t index, uint16_t keycode) {
+    active_keycodes[index] = keycode;
+}
 
-    if (num_tap_hold_events == 0)
-        // No tap-hold events to process
-        return;
+void layout_key_press(uint16_t keycode) {
+    if (IS_HID_KEYCODE(keycode)) {
+        hid_add_keycode(keycode);
+        // We should send the reports after the key is added to the report.
+        should_send_reports = true;
+    } else if (IS_LAYER_TO_KEYCODE(keycode)) {
+        layer_goto(SP_LAYER_TO_GET_LAYER(keycode));
+    } else if (IS_LAYER_MO_KEYCODE(keycode)) {
+        layer_on(SP_LAYER_MO_GET_LAYER(keycode));
+    } else if (IS_LAYER_DEF_KEYCODE(keycode)) {
+        set_default_layer(SP_LAYER_DEF_GET_LAYER(keycode));
+    } else if (IS_LAYER_TOGGLE_KEYCODE(keycode)) {
+        layer_toggle(SP_LAYER_TOGGLE_GET_LAYER(keycode));
+    } else if (IS_PROFILE_TO_KEYCODE(keycode)) {
+        user_config_set_current_profile(SP_PROFILE_TO_GET_PROFILE(keycode));
+    } else if (IS_MAGIC_KEYCODE(keycode)) {
+        switch (keycode) {
+#if defined(ENABLE_BOOTLOADER)
+        case SP_MAGIC_BOOTLOADER:
+            board_enter_bootloader();
+            break;
+#endif
 
-    // Clear the bitmap
-    memset(has_release_events, 0, sizeof(has_release_events));
+        case SP_MAGIC_REBOOT:
+            board_reset();
+            break;
 
-    bool has_press_events = false;
-    PENDING_EVENT_FOREACH(i, event, {
-        if (IS_SW_PRESSED(event->sw_state, last_sw_states[event->index]))
-            has_press_events = true;
-        else if (IS_SW_RELEASED(event->sw_state, last_sw_states[event->index]))
-            has_release_events[event->index >> 5] |= 1
-                                                     << (event->index & 0x001F);
-    });
+        case SP_MAGIC_FACTORY_RESET:
+            user_config_reset();
+            break;
 
-    uint32_t free_stack_slot = 0;
-    TAP_HOLD_EVENT_FOREACH(i, event, {
-        const uint16_t tapping_term =
-            user_config_key_config(current_profile, event->index)->tapping_term;
+        case SP_MAGIC_RECALIBRATE:
+            switch_recalibrate();
+            break;
 
-        bool should_pop = false;
-        if (tap_hold == TAP_HOLD_HOLD_ON_OTHER_KEY_PRESS && has_press_events) {
-            layout_process_hold_action(event->index, event->keycode);
-            should_pop = true;
-        } else {
-            const uint32_t elapsed = timer_elapsed(event->since);
-            const bool has_release_event =
-                has_release_events[event->index >> 5] &
-                (1 << (event->index & 0x001F));
-
-            if (has_release_event && elapsed < tapping_term) {
-                // Perform the tap action
-                layout_process_tap_action(event->index, event->keycode);
-                should_pop = true;
-            } else if (!has_release_event && elapsed >= tapping_term) {
-                // Perform the hold action
-                layout_process_hold_action(event->index, event->keycode);
-                should_pop = true;
-            }
+        default:
+            break;
         }
-
-        if (!should_pop) {
-            if (free_stack_slot != i)
-                tap_hold_events[free_stack_slot] = *event;
-            free_stack_slot++;
-        }
-    });
-
-    num_tap_hold_events = free_stack_slot;
-}
-
-//--------------------------------------------------------------------+
-// Post-HID-Report APIs
-//--------------------------------------------------------------------+
-
-static bool post_hid_report_event_unlocked;
-static uint32_t post_hid_report_event_head, num_post_hid_report_events;
-static layout_post_hid_report_event_t
-    post_hid_report_events[MAX_POST_HID_REPORT_EVENTS];
-
-#define POST_HID_REPORT_EVENT_FOREACH(i, event, block)                         \
-    do {                                                                       \
-        post_hid_report_event_unlocked = false;                                \
-        for (uint32_t(i) = 0; (i) < num_post_hid_report_events; (i)++) {       \
-            const layout_post_hid_report_event_t *(event) =                    \
-                &post_hid_report_events[(post_hid_report_event_head + (i)) &   \
-                                        (MAX_POST_HID_REPORT_EVENTS - 1)];     \
-            (block);                                                           \
-        }                                                                      \
-        post_hid_report_event_unlocked = true;                                 \
-    } while (0)
-
-void layout_post_hid_report_event_init(void) {
-    post_hid_report_event_unlocked = true;
-    post_hid_report_event_head = 0;
-    num_post_hid_report_events = 0;
-    memset(post_hid_report_events, 0, sizeof(post_hid_report_events));
-}
-
-void layout_post_hid_report_event_push(uint16_t index, uint8_t keycode,
-                                       uint8_t action) {
-    if (!post_hid_report_event_unlocked)
-        return;
-
-    post_hid_report_event_unlocked = false;
-
-    if (num_post_hid_report_events == MAX_POST_HID_REPORT_EVENTS) {
-        layout_process_post_hid_report_event(
-            &post_hid_report_events[post_hid_report_event_head]);
-        post_hid_report_event_head =
-            (post_hid_report_event_head + 1) & (MAX_POST_HID_REPORT_EVENTS - 1);
-        num_post_hid_report_events--;
-    }
-
-    const uint32_t post_hid_report_event_tail =
-        (post_hid_report_event_head + num_post_hid_report_events) &
-        (MAX_POST_HID_REPORT_EVENTS - 1);
-    post_hid_report_events[post_hid_report_event_tail].index = index;
-    post_hid_report_events[post_hid_report_event_tail].keycode = keycode;
-    post_hid_report_events[post_hid_report_event_tail].action = action;
-    num_post_hid_report_events++;
-
-    post_hid_report_event_unlocked = true;
-}
-
-void layout_process_post_hid_report_event(
-    const layout_post_hid_report_event_t *event) {
-    switch (event->action) {
-    case POST_HID_REPORT_ACTION_ADD:
-        hid_add_keycode(event->keycode);
-        break;
-
-    case POST_HID_REPORT_ACTION_REMOVE:
-        hid_remove_keycode(event->keycode);
-        break;
-
-    case POST_HID_REPORT_ACTION_TAP:
-        // May not be processed if this function is called when the event queue
-        // is full and we try to push a new event
-        layout_process_tap_action(event->index, event->keycode);
-        break;
-
-    default:
-        break;
     }
 }
 
-void layout_process_post_hid_report_events(void) {
-    static layout_post_hid_report_event_t buffer[MAX_PENDING_EVENTS];
-
-    if (num_post_hid_report_events == 0)
-        return;
-
-    // Copy the events to a temporary buffer to allow pushing new events while
-    // we are clearing the queue later
-    const uint32_t len = num_post_hid_report_events;
-
-    POST_HID_REPORT_EVENT_FOREACH(i, event, { buffer[i] = *event; });
-
-    // Clear the event queue
-    post_hid_report_event_head = 0;
-    num_post_hid_report_events = 0;
-
-    for (uint32_t i = 0; i < len; i++)
-        layout_process_post_hid_report_event(&buffer[i]);
+void layout_key_release(uint16_t keycode) {
+    if (IS_HID_KEYCODE(keycode)) {
+        hid_remove_keycode(keycode);
+        // We should send the reports after the key is removed from the report.
+        should_send_reports = true;
+    } else if (IS_LAYER_TO_KEYCODE(keycode)) {
+        // Nothing to do
+    } else if (IS_LAYER_MO_KEYCODE(keycode)) {
+        layer_off(SP_LAYER_MO_GET_LAYER(keycode));
+    } else if (IS_LAYER_DEF_KEYCODE(keycode)) {
+        // Nothing to do
+    } else if (IS_LAYER_TOGGLE_KEYCODE(keycode)) {
+        // Nothing to do
+    } else if (IS_PROFILE_TO_KEYCODE(keycode)) {
+        // Nothing to do
+    } else if (IS_MAGIC_KEYCODE(keycode)) {
+        // Nothing to do
+    }
 }

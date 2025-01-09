@@ -40,16 +40,16 @@
 #error "NUM_KEYS must be defined"
 #endif
 
-#if !defined(NUM_DYNAMIC_KEYSTROKE_CONFIGS)
-// The number of dynamic keystroke configurations per profile
-#define NUM_DYNAMIC_KEYSTROKE_CONFIGS 16
+#if !defined(NUM_ADVANCED_KEY_BINDINGS)
+// The number of advanced key bindings available for each profile
+#define NUM_ADVANCED_KEY_BINDINGS 32
 #endif
 
 _Static_assert(NUM_PROFILES <= 16, "Invalid number of profiles");
 _Static_assert(NUM_LAYERS <= 16, "Invalid number of layers");
-_Static_assert(NUM_KEYS <= UINT16_MAX, "Invalid number of keys");
-_Static_assert(NUM_DYNAMIC_KEYSTROKE_CONFIGS <= 256,
-               "Invalid number of dynamic keystroke configurations");
+_Static_assert(NUM_KEYS <= 256, "Invalid number of keys");
+_Static_assert(NUM_ADVANCED_KEY_BINDINGS <= 256,
+               "Invalid number of advanced key bindings");
 
 //--------------------------------------------------------------------+
 // User Configuration Types
@@ -63,43 +63,64 @@ enum {
 typedef struct __attribute__((packed)) {
     // Actuation distance in 0.05mm
     uint8_t actuation_distance;
-    // Bottom-out distance in 0.05mm. Only used by dynamic keystroke
-    uint8_t bottom_out_distance;
 } key_mode_normal_t;
 
 typedef struct __attribute__((packed)) {
     // Actuation distance in 0.05mm. Rapid trigger becomes active after this
     // distance.
     uint8_t actuation_distance;
-    // Reset distance in 0.05mm. Rapid trigger becomes inactive after this
-    // distance.
-    uint8_t reset_distance;
     // Distance in 0.05mm to actuate the key when rapid trigger is active
     uint8_t rt_down_distance;
     // Distance in 0.05mm to release the key when rapid trigger is active
     uint8_t rt_up_distance;
+    // Continuous mode. If true, rapid trigger will only be deactivated when the
+    // key is released regardless of the actuation distance.
+    bool continuous;
 } key_mode_rapid_trigger_t;
 
 typedef struct __attribute__((packed)) {
-    // Tapping term in milliseconds
-    uint16_t tapping_term;
     uint8_t mode;
-
     union {
         key_mode_normal_t nm;
         key_mode_rapid_trigger_t rt;
     };
 } key_config_t;
 
-// Tap-hold configuration
 enum {
-    // Hold action is triggered after the tapping term.
-    TAP_HOLD_DEFAULT = 0,
-    // Hold action is triggered either after the tapping term or when another
-    // key is pressed.
-    TAP_HOLD_HOLD_ON_OTHER_KEY_PRESS,
-    TAP_HOLD_COUNT,
+    ADVANCED_KEY_NONE = 0,
+    ADVANCED_KEY_NULL_BIND,
+    ADVANCED_KEY_DKS,
+    ADVANCED_KEY_TAP_HOLD,
+    ADVANCED_KEY_TOGGLE,
 };
+
+enum {
+    // Prioritize the key that is pressed down further
+    NULL_BIND_DISTANCE = 0,
+    // Prioritize last pressed key
+    NULL_BIND_LAST,
+    // Prioritize first key
+    NULL_BIND_INDEX_0,
+    // Prioritize second key
+    NULL_BIND_INDEX_1,
+    // Deactivate both keys if both are pressed
+    NULL_BIND_NEUTRAL,
+};
+
+typedef struct __attribute__((packed)) {
+    // Switch index of the first key
+    uint8_t index0;
+    // Keycode of the first key
+    uint8_t keycode0;
+    // Switch index of the second key
+    uint8_t index1;
+    // Keycode of the second key
+    uint8_t keycode1;
+    // Null bind behavior
+    uint8_t behavior;
+    // Whether both keys are pressed if bottomed out
+    bool bottomed_out;
+} advanced_key_null_bind_t;
 
 // Used for representing all possible configurations of a single key dynamic
 // keystroke. Each part of the mask roughly corresponds to the length of the
@@ -117,7 +138,32 @@ _Static_assert(sizeof(dynamic_keystroke_mask_t) == 1,
 typedef struct __attribute__((packed)) {
     uint8_t keycode[4];
     dynamic_keystroke_mask_t mask[4];
-} dynamic_keystroke_config_t;
+    // Bottom-out distance in 0.05mm
+    uint8_t bottom_out_distance;
+} advanced_key_dks_t;
+
+typedef struct __attribute__((packed)) {
+    // Tapping term in milliseconds
+    uint16_t tapping_term;
+    uint16_t tap_keycode;
+    uint16_t hold_keycode;
+} advanced_key_tap_hold_t;
+
+typedef struct __attribute__((packed)) {
+    // Tapping term in milliseconds
+    uint16_t tapping_term;
+    uint16_t keycode;
+} advanced_key_toggle_t;
+
+typedef struct __attribute__((packed)) {
+    uint8_t type;
+    union {
+        advanced_key_null_bind_t nb;
+        advanced_key_dks_t dks;
+        advanced_key_tap_hold_t th;
+        advanced_key_toggle_t tg;
+    };
+} advanced_key_config_t;
 
 typedef struct __attribute__((packed)) {
     // For verifying the configuration
@@ -127,8 +173,6 @@ typedef struct __attribute__((packed)) {
 
     // Current switch used
     uint8_t sw_id;
-    // Tap-hold configuration
-    uint8_t tap_hold;
     // Current profile
     uint8_t current_profile;
 
@@ -136,10 +180,9 @@ typedef struct __attribute__((packed)) {
     key_config_t key_config[NUM_PROFILES][NUM_KEYS];
     // Keymap for each profile and layer
     uint16_t keymap[NUM_PROFILES][NUM_LAYERS][NUM_KEYS];
-    // Dynamic keystroke configurations. Each profile has its own set of dynamic
-    // keystroke configurations.
-    dynamic_keystroke_config_t
-        dynamic_keystroke_config[NUM_PROFILES][NUM_DYNAMIC_KEYSTROKE_CONFIGS];
+    // Advanced key configurations
+    advanced_key_config_t advanced_key_config[NUM_PROFILES]
+                                             [NUM_ADVANCED_KEY_BINDINGS];
 } user_config_t;
 
 _Static_assert(sizeof(user_config_t) <= EEPROM_BYTES,
@@ -150,7 +193,6 @@ _Static_assert(sizeof(user_config_t) <= EEPROM_BYTES,
 //--------------------------------------------------------------------+
 
 #define SW_ID_OFFSET offsetof(user_config_t, sw_id)
-#define TAP_HOLD_OFFSET offsetof(user_config_t, tap_hold)
 #define CURRENT_PROFILE_OFFSET offsetof(user_config_t, current_profile)
 #define KEY_CONFIG_OFFSET(profile, index)                                      \
     (offsetof(user_config_t, key_config) +                                     \
@@ -159,10 +201,10 @@ _Static_assert(sizeof(user_config_t) <= EEPROM_BYTES,
     (offsetof(user_config_t, keymap) +                                         \
      sizeof(uint16_t) *                                                        \
          (profile * NUM_LAYERS * NUM_KEYS + layer * NUM_KEYS + index))
-#define DYNAMIC_KEYSTROKE_CONFIG_OFFSET(profile, index)                        \
-    (offsetof(user_config_t, dynamic_keystroke_config) +                       \
-     sizeof(dynamic_keystroke_config_t) *                                      \
-         (profile * NUM_DYNAMIC_KEYSTROKE_CONFIGS + index))
+#define ADVANCED_KEY_CONFIG_OFFSET(profile, index)                             \
+    (offsetof(user_config_t, advanced_key_config) +                            \
+     sizeof(advanced_key_config_t) *                                           \
+         (profile * NUM_ADVANCED_KEY_BINDINGS + index))
 
 //--------------------------------------------------------------------+
 // User Configuration APIs
@@ -199,22 +241,6 @@ uint8_t user_config_sw_id(void);
 void user_config_set_sw_id(uint8_t sw_id);
 
 /**
- * @brief Get the tap-hold configuration from the user configuration
- *
- * @return The tap-hold configuration
- */
-uint8_t user_config_tap_hold(void);
-
-/**
- * @brief Set the tap-hold configuration in the user configuration
- *
- * @param tap_hold The tap-hold configuration
- *
- * @return none
- */
-void user_config_set_tap_hold(uint8_t tap_hold);
-
-/**
  * @brief Get the current profile from the user configuration
  *
  * @return The current profile
@@ -237,7 +263,7 @@ void user_config_set_current_profile(uint8_t profile);
  *
  * @return The key configuration
  */
-key_config_t *user_config_key_config(uint8_t profile, uint16_t index);
+key_config_t *user_config_key_config(uint8_t profile, uint8_t index);
 
 /**
  * @brief Set the key configuration in the user configuration
@@ -248,7 +274,7 @@ key_config_t *user_config_key_config(uint8_t profile, uint16_t index);
  *
  * @return none
  */
-void user_config_set_key_config(uint8_t profile, uint16_t index,
+void user_config_set_key_config(uint8_t profile, uint8_t index,
                                 const key_config_t *key_config);
 
 /**
@@ -260,7 +286,7 @@ void user_config_set_key_config(uint8_t profile, uint16_t index,
  *
  * @return The keymap
  */
-uint16_t user_config_keymap(uint8_t profile, uint8_t layer, uint16_t index);
+uint16_t user_config_keymap(uint8_t profile, uint8_t layer, uint8_t index);
 
 /**
  * @brief Set the keymap in the user configuration
@@ -272,28 +298,28 @@ uint16_t user_config_keymap(uint8_t profile, uint8_t layer, uint16_t index);
  *
  * @return none
  */
-void user_config_set_keymap(uint8_t profile, uint8_t layer, uint16_t index,
+void user_config_set_keymap(uint8_t profile, uint8_t layer, uint8_t index,
                             uint16_t keycode);
 
 /**
- * @brief Get the dynamic keystroke configuration from the user configuration
+ * @brief Get the advanced key configuration from the user configuration
  *
  * @param profile The profile
- * @param index The dynamic keystroke index
+ * @param index The advanced key index
  *
- * @return The dynamic keystroke configuration
+ * @return The advanced key configuration
  */
-dynamic_keystroke_config_t *
-user_config_dynamic_keystroke_config(uint8_t profile, uint8_t index);
+advanced_key_config_t *user_config_get_advanced_key_config(uint8_t profile,
+                                                           uint8_t index);
 
 /**
- * @brief Set the dynamic keystroke configuration in the user configuration
+ * @brief Set the advanced key configuration in the user configuration
  *
  * @param profile The profile
- * @param index The dynamic keystroke index
- * @param config The dynamic keystroke configuration
+ * @param index The advanced key index
+ * @param config The advanced key configuration
  *
  * @return none
  */
-void user_config_set_dynamic_keystroke_config(
-    uint8_t profile, uint8_t index, const dynamic_keystroke_config_t *config);
+void user_config_set_advanced_key_config(uint8_t profile, uint8_t index,
+                                         const advanced_key_config_t *config);

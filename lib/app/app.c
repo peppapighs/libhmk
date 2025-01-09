@@ -19,17 +19,23 @@
 #include "debug.h"
 #include "hardware.h"
 #include "hid.h"
+#include "layer.h"
 #include "layout.h"
+#include "post_hid_report.h"
 #include "switches.h"
+#include "tap_hold.h"
 #include "tusb.h"
 #include "user_config.h"
 
 void app_init(void) {
     hardware_init();
-
     user_config_init();
     switch_init();
+
     hid_init();
+    layer_init();
+    post_hid_report_init();
+    tap_hold_init();
     layout_init();
 
     wait_for_switch_calibration();
@@ -37,23 +43,11 @@ void app_init(void) {
     tusb_init(BOARD_TUD_RHPORT, NULL);
 }
 
-#if defined(DEBUG)
-static uint32_t polling_counter;
-#endif
-
 void app_task(void) {
     tud_task();
 
     // Perform user-defined ADC task
     adc_user_task();
 
-#if defined(DEBUG)
-    const uint32_t current_counter = debug_get_counter();
-#endif
-
     layout_task();
-
-#if defined(DEBUG)
-    polling_counter = DEBUG_COUNTER_DIFF(debug_get_counter(), current_counter);
-#endif
 }

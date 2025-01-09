@@ -15,61 +15,76 @@
 
 #pragma once
 
-#include <stdbool.h>
 #include <stdint.h>
 
 //--------------------------------------------------------------------+
-// USB HID APIs
+// Layer APIs
 //--------------------------------------------------------------------+
 
 /**
- * @brief Initialize the HID module
+ * @brief Initialize the layout layer
  *
  * @return none
  */
-void hid_init(void);
+void layer_init(void);
 
 /**
- * @brief Add the keycode to the appropriate HID report
+ * @brief Get the current layer
  *
- * @param keycode The keycode to add
- *
- * @return none
+ * @return The current layer
  */
-void hid_add_keycode(uint16_t keycode);
+uint8_t get_current_layer(void);
 
 /**
- * @brief Remove the keycode from the appropriate HID report
+ * @brief Activate a layer
  *
- * @param keycode The keycode to remove
+ * @param layer_num The layer to activate
  *
  * @return none
  */
-void hid_remove_keycode(uint16_t keycode);
+void layer_on(uint8_t layer_num);
 
 /**
- * @brief Add the modifier to the HID report
+ * @brief Deactivate a layer
  *
- * @param modifier The modifier to add
+ * @param layer_num The layer to deactivate
  *
  * @return none
  */
-void hid_add_modifier(uint8_t modifier);
+void layer_off(uint8_t layer_num);
 
 /**
- * @brief Remove the modifier from the HID report
+ * @brief Toggle a layer
  *
- * @param modifier The modifier to remove
+ * @param layer_num The layer to toggle
  *
  * @return none
  */
-void hid_remove_modifier(uint8_t modifier);
+void layer_toggle(uint8_t layer_num);
 
 /**
- * @brief Start the HID report sending chain
+ * @brief Go to a layer
  *
- * This function will block until the first HID report is sent.
+ * @param layer_num The layer to go to
  *
  * @return none
  */
-void hid_send_reports(void);
+void layer_goto(uint8_t layer_num);
+
+/**
+ * @brief Set the default layer
+ *
+ * @param layer_num The default layer
+ *
+ * @return none
+ */
+void set_default_layer(uint8_t layer_num);
+
+/**
+ * @brief Get the keycode at the specified switch index
+ *
+ * @param index The switch index
+ *
+ * @return The keycode
+ */
+uint16_t get_keycode(uint8_t index);

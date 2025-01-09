@@ -233,63 +233,35 @@ enum {
     KC_RIGHT_ALT = 0x00E6,
     KC_RIGHT_GUI = 0x00E7,
 
-    // Modifier-mask keycodes
-    SP_MODS = 0x0100,
-    SP_MODS_CTRL = 0x0100,
-    SP_MODS_SHIFT = 0x0200,
-    SP_MODS_ALT = 0x0400,
-    SP_MODS_GUI = 0x0800,
-    SP_MODS_MAX = 0x1FFF,
-
-    // Modifier-tap keycodes
-    SP_MOD_TAP = 0x2000,
-    SP_MOD_TAP_CTRL = 0x2100,
-    SP_MOD_TAP_SHIFT = 0x2200,
-    SP_MOD_TAP_ALT = 0x2400,
-    SP_MOD_TAP_GUI = 0x2800,
-    SP_MOD_TAP_MAX = 0x3FFF,
-
-    // Layer-tap keycodes
-    SP_LAYER_TAP = 0x4000,
-    SP_LAYER_TAP_MAX = 0x4FFF,
-
-    // Layer-mod keycodes
-    SP_LAYER_MOD = 0x5000,
-    SP_LAYER_MOD_CTRL = 0x5010,
-    SP_LAYER_MOD_SHIFT = 0x5020,
-    SP_LAYER_MOD_ALT = 0x5040,
-    SP_LAYER_MOD_GUI = 0x5080,
-    SP_LAYER_MOD_MAX = 0x51FF,
+    // Advanced key keycodes
+    SP_ADVANCED_KEY = 0x0100,
+    SP_ADVANCED_KEY_MAX = 0x01FF,
 
     // Layer activation keycodes
-    SP_LAYER_TO = 0x5200,
-    SP_LAYER_TO_MAX = 0x520F,
+    SP_LAYER_TO = 0x0200,
+    SP_LAYER_TO_MAX = 0x020F,
 
     // Layer-momentary keycodes
-    SP_LAYER_MO = 0x5210,
-    SP_LAYER_MO_MAX = 0x521F,
+    SP_LAYER_MO = 0x0210,
+    SP_LAYER_MO_MAX = 0x021F,
 
     // Layer-default keycodes
-    SP_LAYER_DEF = 0x5220,
-    SP_LAYER_DEF_MAX = 0x522F,
+    SP_LAYER_DEF = 0x0220,
+    SP_LAYER_DEF_MAX = 0x022F,
 
     // Layer-toggle keycodes
-    SP_LAYER_TOGGLE = 0x5230,
-    SP_LAYER_TOGGLE_MAX = 0x523F,
+    SP_LAYER_TOGGLE = 0x0230,
+    SP_LAYER_TOGGLE_MAX = 0x023F,
 
     // Profile activation keycodes
-    SP_PROFILE_TO = 0x5240,
-    SP_PROFILE_TO_MAX = 0x524F,
-
-    // Dynamic keystroke keycodes
-    SP_DKS = 0x5300,
-    SP_DKS_MAX = 0x53FF,
+    SP_PROFILE_TO = 0x0240,
+    SP_PROFILE_TO_MAX = 0x024F,
 
     // Magic keycodes
-    SP_MAGIC_BOOTLOADER = 0x7000,
-    SP_MAGIC_REBOOT = 0x7001,
-    SP_MAGIC_FACTORY_RESET = 0x7002,
-    SP_MAGIC_RECALIBRATE = 0x7003,
+    SP_MAGIC_BOOTLOADER = 0x1000,
+    SP_MAGIC_REBOOT = 0x1001,
+    SP_MAGIC_FACTORY_RESET = 0x1002,
+    SP_MAGIC_RECALIBRATE = 0x1003,
 
     // Aliases
     XXXXXXX = KC_NO,
@@ -438,14 +410,9 @@ enum {
 #define IS_HID_KEYCODE(keycode)                                                \
     (KC_NO <= (keycode) && (keycode) <= KC_RIGHT_GUI)
 
-#define IS_MODS_KEYCODE(keycode)                                               \
-    (SP_MODS <= (keycode) && (keycode) <= SP_MODS_MAX)
-#define IS_MOD_TAP_KEYCODE(keycode)                                            \
-    (SP_MOD_TAP <= (keycode) && (keycode) <= SP_MOD_TAP_MAX)
-#define IS_LAYER_TAP_KEYCODE(keycode)                                          \
-    (SP_LAYER_TAP <= (keycode) && (keycode) <= SP_LAYER_TAP_MAX)
-#define IS_LAYER_MOD_KEYCODE(keycode)                                          \
-    (SP_LAYER_MOD <= (keycode) && (keycode) <= SP_LAYER_MOD_MAX)
+#define IS_ADVANCED_KEY_KEYCODE(keycode)                                       \
+    (SP_ADVANCED_KEY <= (keycode) && (keycode) <= SP_ADVANCED_KEY_MAX)
+
 #define IS_LAYER_TO_KEYCODE(keycode)                                           \
     (SP_LAYER_TO <= (keycode) && (keycode) <= SP_LAYER_TO_MAX)
 #define IS_LAYER_MO_KEYCODE(keycode)                                           \
@@ -458,72 +425,16 @@ enum {
 #define IS_PROFILE_TO_KEYCODE(keycode)                                         \
     (SP_PROFILE_TO <= (keycode) && (keycode) <= SP_PROFILE_TO_MAX)
 
-#define IS_DKS_KEYCODE(keycode) (SP_DKS <= (keycode) && (keycode) <= SP_DKS_MAX)
-
 #define IS_MAGIC_KEYCODE(keycode)                                              \
     (SP_MAGIC_BOOTLOADER <= (keycode) && (keycode) <= SP_MAGIC_RECALIBRATE)
 
 //--------------------------------------------------------------------+
-// Modifier-Mask Macros
+// Advanced Key Macros
 //--------------------------------------------------------------------+
 
-#define LCTL(keycode) ((keycode) | SP_MODS_CTRL)
-#define LSFT(keycode) ((keycode) | SP_MODS_SHIFT)
-#define LALT(keycode) ((keycode) | SP_MODS_ALT)
-#define LGUI(keycode) ((keycode) | SP_MODS_GUI)
-#define RCTL(keycode) (LCTL(keycode) | 0x1000)
-#define RSFT(keycode) (LSFT(keycode) | 0x1000)
-#define RALT(keycode) (LALT(keycode) | 0x1000)
-#define RGUI(keycode) (LGUI(keycode) | 0x1000)
+#define AK(index) ((index) | SP_ADVANCED_KEY)
 
-#define SP_MODS_GET_MODS(keycode)                                              \
-    ((((keycode) & 0x0F00) >> 8) << (((keycode) & 0x1000) >> 10))
-#define SP_MODS_GET_KEY(keycode) ((keycode) & 0x00FF)
-
-//--------------------------------------------------------------------+
-// Modifier-Tap Macros
-//--------------------------------------------------------------------+
-
-#define LCTL_T(keycode) ((keycode) | SP_MOD_TAP_CTRL)
-#define LSFT_T(keycode) ((keycode) | SP_MOD_TAP_SHIFT)
-#define LALT_T(keycode) ((keycode) | SP_MOD_TAP_ALT)
-#define LGUI_T(keycode) ((keycode) | SP_MOD_TAP_GUI)
-#define RCTL_T(keycode) (LCTL_T(keycode) | 0x1000)
-#define RSFT_T(keycode) (LSFT_T(keycode) | 0x1000)
-#define RALT_T(keycode) (LALT_T(keycode) | 0x1000)
-#define RGUI_T(keycode) (LGUI_T(keycode) | 0x1000)
-
-#define SP_MOD_TAP_GET_MODS(keycode)                                           \
-    ((((keycode) & 0x0F00) >> 8) << (((keycode) & 0x1000) >> 10))
-#define SP_MOD_TAP_GET_KEY(keycode) ((keycode) & 0x00FF)
-#define SP_MOD_TAP_TO_MODS(keycode) ((keycode) & 0x1F00)
-
-//--------------------------------------------------------------------+
-// Layer-Tap Macros
-//--------------------------------------------------------------------+
-
-#define LT(layer, keycode) ((keycode) | SP_LAYER_TAP | ((layer) << 8))
-
-#define SP_LAYER_TAP_GET_LAYER(keycode) (((keycode) & 0x0F00) >> 8)
-#define SP_LAYER_TAP_GET_KEY(keycode) ((keycode) & 0x00FF)
-#define SP_LAYER_TAP_TO_MO(keycode) ((((keycode) & 0x0F00) >> 8) | SP_LAYER_MO)
-
-//--------------------------------------------------------------------+
-// Layer-Mod Macros
-//--------------------------------------------------------------------+
-
-#define LCTL_LM(layer) ((layer) | SP_LAYER_MOD_CTRL)
-#define LSFT_LM(layer) ((layer) | SP_LAYER_MOD_SHIFT)
-#define LALT_LM(layer) ((layer) | SP_LAYER_MOD_ALT)
-#define LGUI_LM(layer) ((layer) | SP_LAYER_MOD_GUI)
-#define RCTL_LM(layer) (LCTL_LM(layer) | 0x0100)
-#define RSFT_LM(layer) (LSFT_LM(layer) | 0x0100)
-#define RALT_LM(layer) (LALT_LM(layer) | 0x0100)
-#define RGUI_LM(layer) (LGUI_LM(layer) | 0x0100)
-
-#define SP_LAYER_MOD_GET_LAYER(keycode) ((keycode) & 0x000F)
-#define SP_LAYER_MOD_GET_MODS(keycode)                                         \
-    ((((keycode) & 0x00F0) >> 4) << (((keycode) & 0x0100) >> 6))
+#define SP_ADVANCED_KEY_GET_INDEX(keycode) ((keycode) & 0x00FF)
 
 //--------------------------------------------------------------------+
 // Layer Activation Macros
@@ -564,14 +475,6 @@ enum {
 #define PTO(profile) ((profile) | SP_PROFILE_TO)
 
 #define SP_PROFILE_TO_GET_PROFILE(keycode) ((keycode) & 0x000F)
-
-//--------------------------------------------------------------------+
-// Dynamic Keystroke Macros
-//--------------------------------------------------------------------+
-
-#define DKS(config) ((config) | SP_DKS)
-
-#define SP_DKS_GET_CONFIG(keycode) ((keycode) & 0x00FF)
 
 //--------------------------------------------------------------------+
 // Keycode APIs

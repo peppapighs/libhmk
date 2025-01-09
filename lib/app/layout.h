@@ -15,73 +15,7 @@
 
 #pragma once
 
-#include <stdbool.h>
 #include <stdint.h>
-
-#include "config.h"
-
-//--------------------------------------------------------------------+
-// Layout Configuration
-//--------------------------------------------------------------------+
-
-#if !defined(MAX_PENDING_EVENTS)
-// The maximum number of pending events in the event queue per matrix scan
-#define MAX_PENDING_EVENTS 32
-#endif
-
-#if !defined(MAX_TAP_HOLD_EVENTS)
-// The maximum number of tap-hold events in the event queue per matrix scan
-#define MAX_TAP_HOLD_EVENTS 32
-#endif
-
-#if !defined(MAX_POST_HID_REPORT_EVENTS)
-// The maximum number of post-HID report events in the event queue per matrix
-// scan
-#define MAX_POST_HID_REPORT_EVENTS 32
-#endif
-
-_Static_assert((MAX_TAP_HOLD_EVENTS & (MAX_TAP_HOLD_EVENTS - 1)) == 0,
-               "MAX_TAP_HOLD_EVENTS must be a power of 2");
-_Static_assert((MAX_PENDING_EVENTS & (MAX_PENDING_EVENTS - 1)) == 0,
-               "MAX_PENDING_EVENTS must be a power of 2");
-_Static_assert((MAX_POST_HID_REPORT_EVENTS &
-                (MAX_POST_HID_REPORT_EVENTS - 1)) == 0,
-               "MAX_POST_HID_REPORT_EVENTS must be a power of 2");
-
-//--------------------------------------------------------------------+
-// Layout Types
-//--------------------------------------------------------------------+
-
-typedef struct {
-    // The index of the switch
-    uint16_t index;
-    // The switch state
-    uint8_t sw_state;
-} layout_event_t;
-
-typedef struct {
-    // The index of the switch
-    uint16_t index;
-    // The tap-hold keycode
-    uint16_t keycode;
-    // The time the switch was pressed
-    uint32_t since;
-} layout_tap_hold_event_t;
-
-enum {
-    POST_HID_REPORT_ACTION_ADD = 0,
-    POST_HID_REPORT_ACTION_REMOVE,
-    POST_HID_REPORT_ACTION_TAP,
-};
-
-typedef struct {
-    // The index of the switch
-    uint16_t index;
-    // HID keycode of the event
-    uint8_t keycode;
-    // Action to perform
-    uint8_t action;
-} layout_post_hid_report_event_t;
 
 //--------------------------------------------------------------------+
 // Layout APIs
@@ -105,10 +39,36 @@ void layout_init(void);
 void layout_task(void);
 
 /**
- * @brief Task after sending the HID reports
+ * @brief Set the active keycode of a key
  *
- * This function is called after sending all HID reports to the host.
+ * When there is a release event of this key, this keycode will be removed from
+ * the report.
+ *
+ * @param index The switch index
+ * @param keycode The keycode
  *
  * @return none
  */
-void layout_post_hid_report_task(void);
+void layout_set_active_keycode(uint8_t index, uint16_t keycode);
+
+/**
+ * @brief Perform key press action of a keycode
+ *
+ * This function will not process advanced keycodes.
+ *
+ * @param keycode The keycode
+ *
+ * @return none
+ */
+void layout_key_press(uint16_t keycode);
+
+/**
+ * @brief Perform key release action of a keycode
+ *
+ * This function will not process advanced keycodes.
+ *
+ * @param keycode The keycode
+ *
+ * @return none
+ */
+void layout_key_release(uint16_t keycode);
