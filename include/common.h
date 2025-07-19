@@ -160,6 +160,9 @@ typedef struct __attribute__((packed)) {
   uint8_t hold_keycode;
   // Tapping term in milliseconds
   uint16_t tapping_term;
+  // Whether to immediately register the hold action if another non-Tap-Hold key
+  // is pressed, regardless of the tapping term
+  bool hold_on_other_key_press;
 } tap_hold_t;
 
 // Toggle configuration

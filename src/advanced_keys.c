@@ -285,10 +285,9 @@ void advanced_key_tick(bool has_non_tap_hold_press) {
     switch (ak->type) {
     case AK_TYPE_TAP_HOLD:
       if (state->tap_hold.stage == TAP_HOLD_STAGE_TAP &&
-          // If the hold key is a modifier, immediately register it when another
-          // non-Tap-Hold key is pressed.
-          ((has_non_tap_hold_press &
-            IS_MODIFIER_KEYCODE(ak->tap_hold.hold_keycode)) ||
+          // If hold on other key press is enabled, immediately register the
+          // hold key when another non-Tap-Hold key is pressed.
+          ((has_non_tap_hold_press & ak->tap_hold.hold_on_other_key_press) ||
            // Otherwise, the key must be held for the tapping term.
            timer_elapsed(state->tap_hold.since) >= ak->tap_hold.tapping_term)) {
         layout_register(ak->key, ak->tap_hold.hold_keycode);
