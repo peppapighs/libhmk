@@ -24,11 +24,11 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
 - [x] **EEPROM Emulation**: No external EEPROM required. Emulate EEPROM using the internal flash memory.
 - [x] **Web Configurator**: Configure the firmware using [hmkconf](https://github.com/peppapighs/hmkconf) without needing to recompile the firmware.
 - [x] **Tick Rate**: Customizable tick rate for Tap-Hold and Dynamic Keystroke.
+- [x] **8kHz Polling Rate**: Support for 8kHz polling rate on some microcontrollers (e.g., AT32F405xx).
 - [ ] **Gamepad**: Support for gamepad functionality.
 
 ## Limitations
 
-- **Polling Rate**: The firmware is designed to run at 1 kHz polling rate.
 - **RGB Lighting**: The firmware does not support RGB lighting.
 
 ## Getting Started
