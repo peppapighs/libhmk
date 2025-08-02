@@ -46,6 +46,7 @@
 #define M_DIV_CEIL(n, d) (((n) + (d) - 1) / (d))
 #define M_BIT(n) (1UL << (n))
 #define M_IS_POWER_OF_TWO(n) (((n) != 0) && (((n) & ((n) - 1)) == 0))
+#define M_HEX(n) ((n) < 10 ? '0' + (n) : 'A' - 10 + (n))
 
 //--------------------------------------------------------------------+
 // Keyboard Configuration

@@ -30,11 +30,10 @@
 #define CFG_TUD_ENDPOINT0_SIZE 64
 
 // Driver configuration
+// Keyboard, generic, and raw HID interfaces + optionally log HID interface
 #if defined(LOG_ENABLED)
-// 4 HID interfaces (keyboard, generic, raw HID, and log)
 #define CFG_TUD_HID 4
 #else
-// 3 HID interfaces (keyboard, generic, and raw HID)
 #define CFG_TUD_HID 3
 #endif
 

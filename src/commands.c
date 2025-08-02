@@ -87,6 +87,15 @@ void command_process(const uint8_t *buf) {
     *profile = eeconfig->current_profile;
     break;
   }
+  case COMMAND_GET_OPTIONS: {
+    eeconfig_options_t *options = (eeconfig_options_t *)(out_buffer + 1);
+    *options = eeconfig->options;
+    break;
+  }
+  case COMMAND_SET_OPTIONS: {
+    success = eeconfig_set_options((const void *)command_data);
+    break;
+  }
   case COMMAND_GET_KEYMAP: {
     const uint8_t partial_size = COMMAND_PARTIAL_SIZE(sizeof(uint8_t), 0);
     const uint8_t profile = command_data[0];

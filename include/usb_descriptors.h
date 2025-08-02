@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "class/hid/hid.h"
 #include "common.h"
+#include "tusb_config.h"
 
 //--------------------------------------------------------------------+
 // USB Configuration
@@ -58,7 +58,31 @@ enum {
 #if defined(LOG_ENABLED)
   USB_ITF_LOG,
 #endif
+  // We intentionally put the XInput interface last, so that if it is not
+  // enabled, we can subtract its size from the total configuration length
+  // without affecting the other interfaces.
+  USB_ITF_XINPUT,
   USB_ITF_COUNT,
+};
+
+// In endpoint addresses
+enum {
+  EP_IN_ADDR_KEYBOARD = 0x81,
+  EP_IN_ADDR_HID,
+  EP_IN_ADDR_RAW_HID,
+#if defined(LOG_ENABLED)
+  EP_IN_ADDR_LOG,
+#endif
+  EP_IN_ADDR_XINPUT,
+};
+
+// Out endpoint addresses
+enum {
+  EP_OUT_ADDR_RAW_HID = 0x01,
+#if defined(LOG_ENABLED)
+  EP_OUT_ADDR_LOG,
+#endif
+  EP_OUT_ADDR_XINPUT,
 };
 
 enum {
@@ -67,6 +91,19 @@ enum {
   REPORT_ID_MOUSE,
   REPORT_ID_COUNT,
 };
+
+//---------------------------------------------------------------------+
+// Microsoft OS 1.0 descriptor
+//---------------------------------------------------------------------+
+
+// Microsoft OS 1.0 descriptor vendor code
+#define MS_OS_10_VENDOR_CODE 0xAB
+// Microsoft OS 1.0 descriptor header length
+#define MS_OS_10_COMPAT_ID_DESC_LEN 16
+// Microsoft OS 1.0 compatibility ID function length
+#define MS_OS_10_COMPAT_ID_FUNCTION_DESC_LEN 24
+// Microsoft OS 1.0 properties length
+#define MS_OS_10_COMPAT_ID_PROPERTIES_DESC_LEN 142
 
 //--------------------------------------------------------------------+
 // NKRO HID Report

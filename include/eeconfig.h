@@ -54,12 +54,27 @@ typedef struct __attribute__((packed)) {
   uint8_t tick_rate;
 } eeconfig_profile_t;
 
+typedef union {
+  struct {
+    // Whether the XInput interface is enabled
+    bool xinput_enabled : 1;
+    // Reserved bits for future use
+    uint8_t reserved : 7;
+    uint8_t reserved2;
+  };
+  uint16_t raw;
+} eeconfig_options_t;
+
+_Static_assert(sizeof(eeconfig_options_t) == 2,
+               "eeconfig_options_t must be 2 bytes");
+
 // Keyboard configuration
 typedef struct __attribute__((packed)) {
   uint32_t magic_start;
   uint16_t version;
 
   eeconfig_calibration_t calibration;
+  eeconfig_options_t options;
 
   uint8_t current_profile;
   uint8_t last_non_default_profile;
@@ -124,6 +139,15 @@ bool eeconfig_set_tick_rate(uint8_t profile, uint8_t tick_rate);
  * @return true if successful, false otherwise
  */
 bool eeconfig_set_calibration(const void *calibration);
+
+/**
+ * @brief Set the options configuration
+ *
+ * @param options New options configuration
+ *
+ * @return true if successful, false otherwise
+ */
+bool eeconfig_set_options(const void *options);
 
 /**
  * @brief Set the current profile

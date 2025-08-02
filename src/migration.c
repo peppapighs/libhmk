@@ -53,6 +53,9 @@ bool migration_try_migrate(void) {
     current_buf ^= 1;
   }
 
+  // Make sure the destination buffer is valid
+  ((eeconfig_t *)bufs[current_buf])->magic_end = EECONFIG_MAGIC_END;
+
   // We reflect the update in the flash.
   wear_leveling_write(0, &bufs[current_buf], sizeof(eeconfig_t));
 
@@ -73,12 +76,15 @@ static bool migration_v1_0_to_v1_1(void *dst, const void *src) {
                                 + NUM_ADVANCED_KEYS * 12 // Advanced keys
                                 + 1;                     // Tick rate
 
-  // No changes in the structure, just copy the data.
-  memcpy(dst, src, sizeof(eeconfig_t));
+  // Option bitmap is added after calibration at the offset 10-11.
+  memcpy(dst, src, 10);
+  memcpy((uint8_t *)dst + 12, (uint8_t *)src + 10, sizeof(eeconfig_t) - 12);
+  // Default all options to 0
+  *(uint16_t *)(dst + 10) = 0;
 
   for (uint32_t i = 0; i < NUM_PROFILES; i++) {
     for (uint32_t j = 0; j < NUM_ADVANCED_KEYS; j++) {
-      const uint8_t *ak = dst + 12                // Headers and options
+      const uint8_t *ak = dst + 13                // Headers and options
                           + i * profile_size      // Profiles
                           + NUM_LAYERS * NUM_KEYS // Keymap
                           + NUM_KEYS * 4          // Actuation map
@@ -91,7 +97,6 @@ static bool migration_v1_0_to_v1_1(void *dst, const void *src) {
 
   // Update the version to 1.1
   ((eeconfig_t *)dst)->version = 0x0101;
-  ((eeconfig_t *)dst)->magic_end = EECONFIG_MAGIC_END;
 
   return true;
 }

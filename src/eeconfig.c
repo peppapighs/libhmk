@@ -70,6 +70,10 @@ bool eeconfig_set_calibration(const void *calibration) {
   return EECONFIG_UPDATE(calibration, calibration);
 }
 
+bool eeconfig_set_options(const void *options) {
+  return EECONFIG_UPDATE(options, options);
+}
+
 bool eeconfig_set_current_profile(uint8_t profile) {
   if (profile >= NUM_PROFILES)
     return false;
