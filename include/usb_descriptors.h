@@ -109,7 +109,7 @@ enum {
 // NKRO HID Report
 //--------------------------------------------------------------------+
 
-// 20 * 8 = 160 bits for HID keyboard keycodes up to KC_LANGUAGE_2
+// 20 * 8 = 160 bits for HID keyboard keycodes up to KC_LANGUAGE_6
 #define NUM_NKRO_BYTES 20
 
 // NKRO report with 6-KRO fallback

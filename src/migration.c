@@ -134,8 +134,19 @@ bool v1_1_global_config_func(uint8_t *dst, const uint8_t *src) {
 
 bool v1_1_profile_config_func(uint8_t profile, uint8_t *dst,
                               const uint8_t *src) {
+  // Save the `keymap` offset
+  uint8_t *keymap = dst;
   // Copy `keymap` to `actuation_map`
   MIGRATION_MEMCPY(dst, src, (NUM_LAYERS * NUM_KEYS) + (NUM_KEYS * 4));
+  // Update keycodes to include `KC_INT1` ... `KC_LNG6`
+  for (uint32_t i = 0; i < NUM_LAYERS * NUM_KEYS; i++) {
+    if (0x70 <= keymap[i] && keymap[i] <= 0x71)
+      // `KC_LNG1` and `KC_LNG2`
+      keymap[i] += 0x05;
+    else if (0x72 <= keymap[i] && keymap[i] <= 0x96)
+      // `KC_LEFT_CTRL` ... `SP_MOUSE_BUTTON_5`
+      keymap[i] += 0x0A;
+  }
   // Save the `advanced_keys` offset
   uint8_t *advanced_keys = dst;
   // Copy `advanced_keys`
