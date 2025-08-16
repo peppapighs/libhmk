@@ -183,62 +183,43 @@ void xinput_task(void) {
   for (uint32_t i = 0; i < 2; i++) {
     uint16_t *state = &joystick_states[i * 2];
 
-    if (!CURRENT_PROFILE.gamepad_options.square_joystick) {
-      const uint32_t x = square_to_circular(state[0], state[1]);
-      const uint32_t y = square_to_circular(state[1], state[0]);
-      state[0] = x, state[1] = y;
+    uint32_t x = state[0], y = state[1];
+    const uint32_t magnitude = usqrt32(x * x + y * y);
+    if (magnitude == 0)
+      // If magnitude is zero, skip analog curve processing
+      continue;
 
-      const uint32_t magnitude = usqrt16(x * x + y * y);
-      if (magnitude == 0)
-        // If magnitude is zero, skip analog curve processing
-        continue;
-      // Apply the analog curve to the joystick magnitude
-      const uint32_t new_magnitude =
-          apply_analog_curve(magnitude, &is_key_end_deadzone);
+    // Calculate the maximum magnitude for the joystick vector
+    const uint32_t max_x = x > y ? 255 : x * 255 / y;
+    const uint32_t max_y = y > x ? 255 : y * 255 / x;
+    const uint32_t max_magnitude = usqrt32(max_x * max_x + max_y * max_y);
+    // Apply the analog curve to the joystick magnitude. The magnitude is
+    // scaled to [0, 255] range.
+    const uint32_t new_magnitude = apply_analog_curve(
+        magnitude * 255 / max_magnitude, &is_key_end_deadzone);
 
-      if (is_key_end_deadzone) {
-        // If the joystick is in the key end deadzone, we snap the axes to
-        // maximum analog value.
-        if (x != 0 && y != 0) {
-          state[0] = state[1] = 180; // 255 / sqrt(2)
-        } else {
-          state[0] = x == 0 ? 0 : 255;
-          state[1] = y == 0 ? 0 : 255;
-        }
-      } else {
-        // Otherwise, scale the joystick states to the new magnitude
-        state[0] = x * new_magnitude / magnitude;
-        state[1] = y * new_magnitude / magnitude;
-      }
+    if (is_key_end_deadzone) {
+      // If the joystick is in the key end deadzone, we snap the axes to
+      // maximum analog value.
+      x = x == 0 ? 0 : 255;
+      y = y == 0 ? 0 : 255;
     } else {
-      const uint32_t x = state[0], y = state[1];
-      const uint32_t magnitude = usqrt32(x * x + y * y);
-      if (magnitude == 0)
-        // If magnitude is zero, skip analog curve processing
-        continue;
+      // Otherwise, scale the joystick states to the new magnitude
+      // We scale the maximum vector instead of the joystick vector to
+      // prevent the analog values from exceeding the maximum range due to
+      // approximation errors.
+      x = max_x * new_magnitude / 255;
+      y = max_y * new_magnitude / 255;
+    }
 
-      // Calculate the maximum magnitude for the joystick vector
-      const uint32_t max_x = x > y ? 255 : x * 255 / y;
-      const uint32_t max_y = y > x ? 255 : y * 255 / x;
-      const uint32_t max_magnitude = usqrt32(max_x * max_x + max_y * max_y);
-      // Apply the analog curve to the joystick magnitude. The magnitude is
-      // scaled to [0, 255] range.
-      const uint32_t new_magnitude = apply_analog_curve(
-          magnitude * 255 / max_magnitude, &is_key_end_deadzone);
-
-      if (is_key_end_deadzone) {
-        // If the joystick is in the key end deadzone, we snap the axes to
-        // maximum analog value.
-        state[0] = x == 0 ? 0 : 255;
-        state[1] = y == 0 ? 0 : 255;
-      } else {
-        // Otherwise, scale the joystick states to the new magnitude
-        // We scale the maximum vector instead of the joystick vector to
-        // prevent the analog values from exceeding the maximum range due to
-        // approximation errors.
-        state[0] = max_x * new_magnitude / 255;
-        state[1] = max_y * new_magnitude / 255;
-      }
+    if (!CURRENT_PROFILE.gamepad_options.square_joystick) {
+      // Convert square joystick coordinates to circular coordinates
+      state[0] = square_to_circular(x, y);
+      state[1] = square_to_circular(y, x);
+    } else {
+      // Otherwise, use the original values
+      state[0] = x;
+      state[1] = y;
     }
   }
 
