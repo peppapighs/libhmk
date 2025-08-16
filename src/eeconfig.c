@@ -20,13 +20,6 @@
 #include "layout.h"
 #include "migration.h"
 
-// Helper macro to update a field in the configuration
-#define EECONFIG_UPDATE(field, value)                                          \
-  wear_leveling_write(offsetof(eeconfig_t, field), value,                      \
-                      sizeof(((eeconfig_t *)0)->field))
-#define EECONFIG_UPDATE_N(field, value, len)                                   \
-  wear_leveling_write(offsetof(eeconfig_t, field), value, len)
-
 const eeconfig_t *eeconfig;
 
 static const eeconfig_t default_eeconfig = {
@@ -58,84 +51,4 @@ bool eeconfig_reset(void) {
   layout_load_advanced_keys();
 
   return status;
-}
-
-bool eeconfig_set_calibration(const void *calibration) {
-  return EECONFIG_UPDATE(calibration, calibration);
-}
-
-bool eeconfig_set_options(const void *options) {
-  return EECONFIG_UPDATE(options, options);
-}
-
-bool eeconfig_set_current_profile(uint8_t profile) {
-  if (profile >= NUM_PROFILES)
-    return false;
-
-  advanced_key_clear();
-  bool status = EECONFIG_UPDATE(current_profile, &profile);
-  if (status && profile != 0)
-    status = EECONFIG_UPDATE(last_non_default_profile, &profile);
-  layout_load_advanced_keys();
-
-  return status;
-}
-
-bool eeconfig_set_keymap(uint8_t profile, uint8_t layer, uint8_t start,
-                         uint8_t len, const void *keymap) {
-  if (profile >= NUM_PROFILES || layer >= NUM_LAYERS || start + len > NUM_KEYS)
-    return false;
-
-  return EECONFIG_UPDATE_N(profiles[profile].keymap[layer][start], keymap, len);
-}
-
-bool eeconfig_set_actuation_map(uint8_t profile, uint8_t start, uint8_t len,
-                                const void *actuation_map) {
-  if (profile >= NUM_PROFILES || start + len > NUM_KEYS)
-    return false;
-
-  return EECONFIG_UPDATE_N(profiles[profile].actuation_map[start],
-                           actuation_map, len * sizeof(actuation_t));
-}
-
-bool eeconfig_set_advanced_keys(uint8_t profile, uint8_t start, uint8_t len,
-                                const void *advanced_key) {
-  if (profile >= NUM_PROFILES || start + len > NUM_ADVANCED_KEYS)
-    return false;
-
-  if (eeconfig->current_profile == profile)
-    // We only need to clear the advanced keys if the advanced keys in
-    // the current profile are being updated.
-    advanced_key_clear();
-  const bool status =
-      EECONFIG_UPDATE_N(profiles[profile].advanced_keys[start], advanced_key,
-                        len * sizeof(advanced_key_t));
-  if (eeconfig->current_profile == profile)
-    // Same as above
-    layout_load_advanced_keys();
-
-  return status;
-}
-
-bool eeconfig_set_gamepad_buttons(uint8_t profile, uint8_t start, uint8_t len,
-                                  const void *buttons) {
-  if (profile >= NUM_PROFILES || start + len > NUM_KEYS)
-    return false;
-
-  return EECONFIG_UPDATE_N(profiles[profile].gamepad_buttons[start], buttons,
-                           len);
-}
-
-bool eeconfig_set_gamepad_options(uint8_t profile, const void *options) {
-  if (profile >= NUM_PROFILES)
-    return false;
-
-  return EECONFIG_UPDATE(profiles[profile].gamepad_options, options);
-}
-
-bool eeconfig_set_tick_rate(uint8_t profile, uint8_t tick_rate) {
-  if (profile >= NUM_PROFILES)
-    return false;
-
-  return EECONFIG_UPDATE(profiles[profile].tick_rate, &tick_rate);
 }

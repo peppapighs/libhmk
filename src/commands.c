@@ -15,25 +15,31 @@
 
 #include "commands.h"
 
-#include "eeconfig.h"
+#include "advanced_keys.h"
 #include "hardware/hardware.h"
+#include "layout.h"
 #include "matrix.h"
 #include "tusb.h"
-#include "usb_descriptors.h"
 
-static uint8_t out_buffer[RAW_HID_EP_SIZE];
+// Helper macro to verify command parameters
+#define COMMAND_VERIFY(cond)                                                   \
+  if (!(cond)) {                                                               \
+    success = false;                                                           \
+    break;                                                                     \
+  }
+
+static uint8_t out_buf[RAW_HID_EP_SIZE];
 
 void command_init(void) {}
 
 void command_process(const uint8_t *buf) {
-  const uint8_t command_id = buf[0];
-  const uint8_t *command_data = buf + 1;
+  const command_in_buffer_t *in = (const command_in_buffer_t *)buf;
+  command_out_buffer_t *out = (command_out_buffer_t *)out_buf;
 
   bool success = true;
-  switch (command_id) {
+  switch (in->command_id) {
   case COMMAND_FIRMWARE_VERSION: {
-    uint16_t *version = (uint16_t *)(out_buffer + 1);
-    *version = FIRMWARE_VERSION;
+    out->firmware_version = FIRMWARE_VERSION;
     break;
   }
   case COMMAND_REBOOT: {
@@ -53,245 +59,166 @@ void command_process(const uint8_t *buf) {
     break;
   }
   case COMMAND_ANALOG_INFO: {
-    const uint8_t partial_size =
-        COMMAND_PARTIAL_SIZE(sizeof(command_analog_info_t), 0);
-    const uint8_t start = command_data[0] * partial_size;
-    if (start >= NUM_KEYS) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
+    const command_in_analog_info_t *p = &in->analog_info;
+    command_out_analog_info_t *o = out->analog_info;
 
-    command_analog_info_t *res = (command_analog_info_t *)(out_buffer + 1);
-    for (uint32_t i = 0; i < partial_size; i++) {
-      if (start + i >= NUM_KEYS)
-        break;
+    COMMAND_VERIFY(p->offset < NUM_KEYS);
 
-      res[i].adc_value = key_matrix[start + i].adc_filtered;
-      res[i].distance = key_matrix[start + i].distance;
+    for (uint32_t i = 0;
+         i < M_ARRAY_SIZE(out->analog_info) && i + p->offset < NUM_KEYS; i++) {
+      o[i].adc_value = key_matrix[i + p->offset].adc_filtered;
+      o[i].distance = key_matrix[i + p->offset].distance;
     }
     break;
   }
   case COMMAND_GET_CALIBRATION: {
-    eeconfig_calibration_t *calibration =
-        (eeconfig_calibration_t *)(out_buffer + 1);
-    *calibration = eeconfig->calibration;
+    out->calibration = eeconfig->calibration;
     break;
   }
   case COMMAND_SET_CALIBRATION: {
-    success = eeconfig_set_calibration((const void *)command_data);
+    success = EECONFIG_WRITE(calibration, &in->calibration);
     break;
   }
   case COMMAND_GET_PROFILE: {
-    uint8_t *profile = (uint8_t *)(out_buffer + 1);
-    *profile = eeconfig->current_profile;
+    out->current_profile = eeconfig->current_profile;
     break;
   }
   case COMMAND_GET_OPTIONS: {
-    uint16_t *options = (uint16_t *)(out_buffer + 1);
-    *options = eeconfig->options.raw;
+    out->options = eeconfig->options;
     break;
   }
   case COMMAND_SET_OPTIONS: {
-    success = eeconfig_set_options((const void *)command_data);
+    success = EECONFIG_WRITE(options, &in->options);
     break;
   }
   case COMMAND_GET_KEYMAP: {
-    const uint8_t partial_size = COMMAND_PARTIAL_SIZE(sizeof(uint8_t), 0);
-    const uint8_t profile = command_data[0];
-    const uint8_t layer = command_data[1];
-    const uint8_t start = command_data[2] * partial_size;
+    const command_in_keymap_t *p = &in->keymap;
 
-    if (profile >= NUM_PROFILES || layer >= NUM_LAYERS || start >= NUM_KEYS) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(p->layer < NUM_LAYERS);
+    COMMAND_VERIFY(p->offset < NUM_KEYS);
 
-    uint8_t *keymap = out_buffer + 1;
-    for (uint32_t i = 0; i < partial_size; i++) {
-      if (start + i >= NUM_KEYS)
-        break;
-      keymap[i] = eeconfig->profiles[profile].keymap[layer][start + i];
-    }
+    memcpy(out->keymap,
+           eeconfig->profiles[p->profile].keymap[p->layer] + p->offset,
+           M_MIN(M_ARRAY_SIZE(out->keymap), (uint32_t)(NUM_KEYS - p->offset)) *
+               sizeof(uint8_t));
     break;
   }
   case COMMAND_SET_KEYMAP: {
-    const uint8_t partial_size = COMMAND_PARTIAL_SIZE(sizeof(uint8_t), 4);
-    const uint8_t profile = command_data[0];
-    const uint8_t layer = command_data[1];
-    const uint8_t start = command_data[2];
-    const uint8_t len = command_data[3];
+    const command_in_keymap_t *p = &in->keymap;
 
-    if (profile >= NUM_PROFILES || layer >= NUM_LAYERS ||
-        start + len > NUM_KEYS || len > partial_size) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(p->layer < NUM_LAYERS);
+    COMMAND_VERIFY(p->offset < NUM_KEYS);
+    COMMAND_VERIFY(p->len <= M_ARRAY_SIZE(p->keymap) &&
+                   p->len <= NUM_KEYS - p->offset);
 
-    success = eeconfig_set_keymap(profile, layer, start, len, command_data + 4);
+    success = EECONFIG_WRITE_N(profiles[p->profile].keymap[p->layer][p->offset],
+                               p->keymap, sizeof(uint8_t) * p->len);
     break;
   }
   case COMMAND_GET_ACTUATION_MAP: {
-    const uint8_t partial_size = COMMAND_PARTIAL_SIZE(sizeof(actuation_t), 0);
-    const uint8_t profile = command_data[0];
-    const uint8_t start = command_data[1] * partial_size;
+    const command_in_actuation_map_t *p = &in->actuation_map;
 
-    if (profile >= NUM_PROFILES || start >= NUM_KEYS) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(p->offset < NUM_KEYS);
 
-    actuation_t *actuation_map = (actuation_t *)(out_buffer + 1);
-    for (uint32_t i = 0; i < partial_size; i++) {
-      if (start + i >= NUM_KEYS)
-        break;
-      actuation_map[i] = eeconfig->profiles[profile].actuation_map[start + i];
-    }
+    memcpy(out->actuation_map,
+           eeconfig->profiles[p->profile].actuation_map + p->offset,
+           M_MIN(M_ARRAY_SIZE(out->actuation_map),
+                 (uint32_t)(NUM_KEYS - p->offset)) *
+               sizeof(actuation_t));
     break;
   }
   case COMMAND_SET_ACTUATION_MAP: {
-    const uint8_t partial_size = COMMAND_PARTIAL_SIZE(sizeof(actuation_t), 3);
-    const uint8_t profile = command_data[0];
-    const uint8_t start = command_data[1];
-    const uint8_t len = command_data[2];
+    const command_in_actuation_map_t *p = &in->actuation_map;
 
-    if (profile >= NUM_PROFILES || start + len > NUM_KEYS ||
-        len > partial_size) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(p->offset < NUM_KEYS);
+    COMMAND_VERIFY(p->len <= M_ARRAY_SIZE(p->actuation_map) &&
+                   p->len <= NUM_KEYS - p->offset);
 
-    success = eeconfig_set_actuation_map(profile, start, len, command_data + 3);
+    success = EECONFIG_WRITE_N(profiles[p->profile].actuation_map[p->offset],
+                               p->actuation_map, sizeof(actuation_t) * p->len);
     break;
   }
   case COMMAND_GET_ADVANCED_KEYS: {
-    const uint8_t partial_size =
-        COMMAND_PARTIAL_SIZE(sizeof(advanced_key_t), 0);
-    const uint8_t profile = command_data[0];
-    const uint8_t start = command_data[1] * partial_size;
+    const command_in_advanced_keys_t *p = &in->advanced_keys;
 
-    if (profile >= NUM_PROFILES || start >= NUM_ADVANCED_KEYS) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(p->offset < NUM_ADVANCED_KEYS);
 
-    advanced_key_t *advanced_keys = (advanced_key_t *)(out_buffer + 1);
-    for (uint32_t i = 0; i < partial_size; i++) {
-      if (start + i >= NUM_ADVANCED_KEYS)
-        break;
-      advanced_keys[i] = eeconfig->profiles[profile].advanced_keys[start + i];
-    }
+    memcpy(out->advanced_keys,
+           eeconfig->profiles[p->profile].advanced_keys + p->offset,
+           M_MIN(M_ARRAY_SIZE(out->advanced_keys),
+                 (uint32_t)(NUM_ADVANCED_KEYS - p->offset)) *
+               sizeof(advanced_key_t));
     break;
   }
   case COMMAND_SET_ADVANCED_KEYS: {
-    const uint8_t partial_size =
-        COMMAND_PARTIAL_SIZE(sizeof(advanced_key_t), 3);
-    const uint8_t profile = command_data[0];
-    const uint8_t start = command_data[1];
-    const uint8_t len = command_data[2];
+    const command_in_advanced_keys_t *p = &in->advanced_keys;
 
-    if (profile >= NUM_PROFILES || start + len > NUM_ADVANCED_KEYS ||
-        len > partial_size) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(p->offset < NUM_ADVANCED_KEYS);
+    COMMAND_VERIFY(p->len <= M_ARRAY_SIZE(p->advanced_keys) &&
+                   p->len <= NUM_ADVANCED_KEYS - p->offset);
 
-    success = eeconfig_set_advanced_keys(profile, start, len, command_data + 3);
+    if (p->profile == eeconfig->current_profile)
+      advanced_key_clear();
+    success =
+        EECONFIG_WRITE_N(profiles[p->profile].advanced_keys[p->offset],
+                         p->advanced_keys, sizeof(advanced_key_t) * p->len);
+    if (p->profile == eeconfig->current_profile)
+      layout_load_advanced_keys();
     break;
   }
   case COMMAND_GET_TICK_RATE: {
-    const uint8_t profile = command_data[0];
-
-    if (profile >= NUM_PROFILES) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
-
-    uint8_t *tick_rate = out_buffer + 1;
-    *tick_rate = eeconfig->profiles[profile].tick_rate;
+    out->tick_rate = eeconfig->profiles[eeconfig->current_profile].tick_rate;
     break;
   }
   case COMMAND_SET_TICK_RATE: {
-    const uint8_t profile = command_data[0];
-    const uint8_t tick_rate = command_data[1];
+    const command_in_tick_rate_t *p = &in->tick_rate;
 
-    if (profile >= NUM_PROFILES) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
-
-    success = eeconfig_set_tick_rate(profile, tick_rate);
+    success = EECONFIG_WRITE(profiles[p->profile].tick_rate, &p->tick_rate);
     break;
   }
   case COMMAND_GET_GAMEPAD_BUTTONS: {
-    const uint8_t partial_size = COMMAND_PARTIAL_SIZE(sizeof(uint8_t), 0);
-    const uint8_t profile = command_data[0];
-    const uint8_t start = command_data[1] * partial_size;
+    const command_in_gamepad_buttons_t *p = &in->gamepad_buttons;
 
-    if (profile >= NUM_PROFILES || start >= NUM_KEYS) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(p->offset < NUM_KEYS);
 
-    uint8_t *gamepad_buttons = out_buffer + 1;
-    for (uint32_t i = 0; i < partial_size; i++) {
-      if (start + i >= NUM_KEYS)
-        break;
-      gamepad_buttons[i] =
-          eeconfig->profiles[profile].gamepad_buttons[start + i];
-    }
+    memcpy(out->gamepad_buttons,
+           eeconfig->profiles[p->profile].gamepad_buttons + p->offset,
+           M_MIN(M_ARRAY_SIZE(out->gamepad_buttons),
+                 (uint32_t)(NUM_KEYS - p->offset)) *
+               sizeof(uint8_t));
     break;
   }
   case COMMAND_SET_GAMEPAD_BUTTONS: {
-    const uint8_t partial_size = COMMAND_PARTIAL_SIZE(sizeof(uint8_t), 3);
-    const uint8_t profile = command_data[0];
-    const uint8_t start = command_data[1];
-    const uint8_t len = command_data[2];
+    const command_in_gamepad_buttons_t *p = &in->gamepad_buttons;
 
-    if (profile >= NUM_PROFILES || start + len > NUM_KEYS ||
-        len > partial_size) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(p->offset < NUM_KEYS);
+    COMMAND_VERIFY(p->len <= M_ARRAY_SIZE(p->gamepad_buttons) &&
+                   p->len <= NUM_KEYS - p->offset);
 
-    success =
-        eeconfig_set_gamepad_buttons(profile, start, len, command_data + 3);
+    success = EECONFIG_WRITE_N(profiles[p->profile].gamepad_buttons[p->offset],
+                               p->gamepad_buttons, sizeof(uint8_t) * p->len);
     break;
   }
   case COMMAND_GET_GAMEPAD_OPTIONS: {
-    const uint8_t profile = command_data[0];
-
-    if (profile >= NUM_PROFILES) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
-
-    gamepad_options_t *gamepad_options = (gamepad_options_t *)(out_buffer + 1);
-    memcpy(gamepad_options, &eeconfig->profiles[profile].gamepad_options,
-           sizeof(gamepad_options_t));
+    out->gamepad_options =
+        eeconfig->profiles[eeconfig->current_profile].gamepad_options;
     break;
   }
   case COMMAND_SET_GAMEPAD_OPTIONS: {
-    const uint8_t profile = command_data[0];
+    const command_in_gamepad_options_t *p = &in->gamepad_options;
 
-    if (profile >= NUM_PROFILES) {
-      // Invalid parameters
-      success = false;
-      break;
-    }
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
 
-    success = eeconfig_set_gamepad_options(profile, command_data + 1);
+    success = EECONFIG_WRITE(profiles[p->profile].gamepad_options,
+                             &p->gamepad_options);
     break;
   }
   default: {
@@ -302,10 +229,10 @@ void command_process(const uint8_t *buf) {
   }
 
   // Echo the command ID back to the host if successful
-  out_buffer[0] = success ? command_id : COMMAND_UNKNOWN;
+  out->command_id = success ? in->command_id : COMMAND_UNKNOWN;
 
   while (!tud_hid_n_ready(USB_ITF_RAW_HID))
     // Wait for the raw HID interface to be ready
     tud_task();
-  tud_hid_n_report(USB_ITF_RAW_HID, 0, out_buffer, RAW_HID_EP_SIZE);
+  tud_hid_n_report(USB_ITF_RAW_HID, 0, out_buf, RAW_HID_EP_SIZE);
 }

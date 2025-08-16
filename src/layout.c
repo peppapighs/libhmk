@@ -238,6 +238,29 @@ void layout_task(void) {
   deferred_action_process();
 }
 
+/**
+ * @brief Set the current profile
+ *
+ * This function also refreshes the advanced keys, and saves the last
+ * non-default profile for profile swapping.
+ *
+ * @param profile Profile index
+ *
+ * @return true if successful, false otherwise
+ */
+static bool layout_set_profile(uint8_t profile) {
+  if (profile >= NUM_PROFILES)
+    return false;
+
+  advanced_key_clear();
+  bool status = EECONFIG_WRITE(current_profile, &profile);
+  if (status && profile != 0)
+    status = EECONFIG_WRITE(last_non_default_profile, &profile);
+  layout_load_advanced_keys();
+
+  return status;
+}
+
 void layout_register(uint8_t key, uint8_t keycode) {
   if (keycode == KC_NO)
     return;
@@ -253,7 +276,7 @@ void layout_register(uint8_t key, uint8_t keycode) {
     break;
 
   case PROFILE_RANGE:
-    eeconfig_set_current_profile(PF_GET_PROFILE(keycode));
+    layout_set_profile(PF_GET_PROFILE(keycode));
     break;
 
   case SP_KEY_LOCK:
@@ -265,13 +288,12 @@ void layout_register(uint8_t key, uint8_t keycode) {
     break;
 
   case SP_PROFILE_SWAP:
-    eeconfig_set_current_profile(
+    layout_set_profile(
         eeconfig->current_profile ? 0 : eeconfig->last_non_default_profile);
     break;
 
   case SP_PROFILE_NEXT:
-    eeconfig_set_current_profile((eeconfig->current_profile + 1) %
-                                 NUM_PROFILES);
+    layout_set_profile((eeconfig->current_profile + 1) % NUM_PROFILES);
     break;
 
   case SP_BOOT:

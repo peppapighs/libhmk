@@ -47,7 +47,7 @@ typedef struct __attribute__((packed)) {
 } eeconfig_calibration_t;
 
 // Keyboard options configuration
-typedef union {
+typedef union __attribute__((packed)) {
   struct __attribute__((packed)) {
     // Whether the XInput interface is enabled
     bool xinput_enabled : 1;
@@ -196,101 +196,25 @@ void eeconfig_init(void);
 bool eeconfig_reset(void);
 
 /**
- * @brief Set the calibration configuration
+ * @brief Write a value to a field in the persistent configuration
  *
- * @param calibration New calibration configuration
+ * @param field Field to write to
+ * @param value Value to write
  *
  * @return true if successful, false otherwise
  */
-bool eeconfig_set_calibration(const void *calibration);
+#define EECONFIG_WRITE(field, value)                                           \
+  wear_leveling_write(offsetof(eeconfig_t, field), value,                      \
+                      sizeof(((eeconfig_t *)0)->field))
 
 /**
- * @brief Set the options configuration
+ * @brief Write a value to a field in the persistent configuration
  *
- * @param options New options configuration
- *
- * @return true if successful, false otherwise
- */
-bool eeconfig_set_options(const void *options);
-
-/**
- * @brief Set the current profile
- *
- * @param profile Profile index
+ * @param field Field to write to
+ * @param value Value to write
+ * @param len Length of the value in bytes
  *
  * @return true if successful, false otherwise
  */
-bool eeconfig_set_current_profile(uint8_t profile);
-
-/**
- * @brief Set the keymap for a profile
- *
- * @param profile Profile index
- * @param layer Layer index
- * @param start Starting key index
- * @param len Length of the partial keymap
- * @param keymap New partial keymap
- *
- * @return true if successful, false otherwise
- */
-bool eeconfig_set_keymap(uint8_t profile, uint8_t layer, uint8_t start,
-                         uint8_t len, const void *keymap);
-
-/**
- * @brief Set the actuation map for a profile
- *
- * @param profile Profile index
- * @param start Starting key index
- * @param len Length of the partial actuation map
- * @param actuation_map New partial actuation map
- *
- * @return true if successful, false otherwise
- */
-bool eeconfig_set_actuation_map(uint8_t profile, uint8_t start, uint8_t len,
-                                const void *actuation_map);
-
-/**
- * @brief Set the advanced keys for a profile
- *
- * @param profile Profile index
- * @param start Starting advanced key index
- * @param len Length of the partial advanced keys
- * @param advanced_keys New partial advanced keys
- *
- * @return true if successful, false otherwise
- */
-bool eeconfig_set_advanced_keys(uint8_t profile, uint8_t start, uint8_t len,
-                                const void *advanced_keys);
-
-/**
- * @brief Set the gamepad buttons for a profile
- *
- * @param profile Profile index
- * @param start Starting button index
- * @param len Length of the partial buttons
- * @param buttons New partial gamepad buttons
- *
- * @return true if successful, false otherwise
- */
-bool eeconfig_set_gamepad_buttons(uint8_t profile, uint8_t start, uint8_t len,
-                                  const void *buttons);
-
-/**
- * @brief Set the gamepad options for a profile
- *
- * @param profile Profile index
- * @param options New gamepad options
- *
- * @return true if successful, false otherwise
- */
-bool eeconfig_set_gamepad_options(uint8_t profile, const void *options);
-
-/**
- * @brief Set the tick rate
- *
- * @param profile Profile index
- * @param tick_rate New tick rate value
- *
- * @return true if successful, false otherwise
- */
-bool eeconfig_set_tick_rate(uint8_t profile, uint8_t tick_rate);
+#define EECONFIG_WRITE_N(field, value, len)                                    \
+  wear_leveling_write(offsetof(eeconfig_t, field), value, len)

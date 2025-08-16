@@ -53,7 +53,7 @@ _Static_assert(WL_BACKING_STORE_SIZE <= FLASH_SIZE,
 #define WL_LOG_ENTRY_SIZE 8
 #define WL_MAX_BYTES_PER_ENTRY 6
 
-typedef union {
+typedef union __attribute__((packed)) {
   struct __attribute__((packed)) {
     uint16_t addr : 13;
     uint8_t len : 3;

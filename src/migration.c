@@ -18,16 +18,6 @@
 #include "eeconfig.h"
 #include "wear_leveling.h"
 
-// `memcpy` and move pointers forward
-#define MIGRATION_MEMCPY(dst, src, size)                                       \
-  memcpy((dst), (src), (size)), (dst) += (size), (src) += (size)
-// `memset` and move pointers forward
-#define MIGRATION_MEMSET(dst, value, size)                                     \
-  memset((dst), (value), (size)), (dst) += (size)
-// Assign a value and move the pointer forward
-#define MIGRATION_ASSIGN(dst, value, type)                                     \
-  *(type *)(dst) = (value), (dst) += sizeof(type)
-
 static bool v1_1_global_config_func(uint8_t *dst, const uint8_t *src);
 static bool v1_1_profile_config_func(uint8_t profile, uint8_t *dst,
                                      const uint8_t *src);
@@ -114,6 +104,30 @@ bool migration_try_migrate(void) {
 }
 
 //--------------------------------------------------------------------+
+// Helper Functions
+//--------------------------------------------------------------------+
+
+static void migration_memcpy(uint8_t **dst, const uint8_t **src, uint32_t len) {
+  memcpy(*dst, *src, len);
+  *dst += len;
+  *src += len;
+}
+
+static void migration_memset(uint8_t **dst, uint8_t value, uint32_t len) {
+  memset(*dst, value, len);
+  *dst += len;
+}
+
+#define MAKE_MIGRATION_ASSIGN(type)                                            \
+  static void migration_assign_##type(uint8_t **dst, type value) {             \
+    *(type *)(*dst) = value;                                                   \
+    *dst = (uint8_t *)((type *)(*dst) + 1);                                    \
+  }
+
+MAKE_MIGRATION_ASSIGN(uint8_t)
+MAKE_MIGRATION_ASSIGN(uint16_t)
+
+//--------------------------------------------------------------------+
 // v1.0 -> v1.1 Migration
 //--------------------------------------------------------------------+
 
@@ -123,11 +137,11 @@ bool v1_1_global_config_func(uint8_t *dst, const uint8_t *src) {
     return false;
 
   // Copy `magic_start` to `calibration`
-  MIGRATION_MEMCPY(dst, src, 10);
+  migration_memcpy(&dst, &src, 10);
   // Default `options` to 0
-  MIGRATION_ASSIGN(dst, 0, uint16_t);
+  migration_assign_uint16_t(&dst, 0);
   // Copy `current_profile` and `last_non_default_profile`
-  MIGRATION_MEMCPY(dst, src, 2);
+  migration_memcpy(&dst, &src, 2);
 
   return true;
 }
@@ -137,7 +151,7 @@ bool v1_1_profile_config_func(uint8_t profile, uint8_t *dst,
   // Save the `keymap` offset
   uint8_t *keymap = dst;
   // Copy `keymap` to `actuation_map`
-  MIGRATION_MEMCPY(dst, src, (NUM_LAYERS * NUM_KEYS) + (NUM_KEYS * 4));
+  migration_memcpy(&dst, &src, (NUM_LAYERS * NUM_KEYS) + (NUM_KEYS * 4));
   // Update keycodes to include `KC_INT1` ... `KC_LNG6`
   for (uint32_t i = 0; i < NUM_LAYERS * NUM_KEYS; i++) {
     if (0x70 <= keymap[i] && keymap[i] <= 0x71)
@@ -150,7 +164,7 @@ bool v1_1_profile_config_func(uint8_t profile, uint8_t *dst,
   // Save the `advanced_keys` offset
   uint8_t *advanced_keys = dst;
   // Copy `advanced_keys`
-  MIGRATION_MEMCPY(dst, src, NUM_ADVANCED_KEYS * 12);
+  migration_memcpy(&dst, &src, NUM_ADVANCED_KEYS * 12);
   // Default `hold_on_other_key_press` to 0
   for (uint8_t i = 0; i < NUM_ADVANCED_KEYS; i++) {
     uint8_t *ak = advanced_keys + i * 12;
@@ -158,16 +172,16 @@ bool v1_1_profile_config_func(uint8_t profile, uint8_t *dst,
       ak[7] = 0;
   }
   // Set `gamepad_buttons` to 0
-  MIGRATION_MEMSET(dst, 0, NUM_KEYS);
+  migration_memset(&dst, 0, NUM_KEYS);
   // Default `analog_curve` to linear
-  MIGRATION_ASSIGN(dst, 4, uint8_t), MIGRATION_ASSIGN(dst, 20, uint8_t);
-  MIGRATION_ASSIGN(dst, 85, uint8_t), MIGRATION_ASSIGN(dst, 95, uint8_t);
-  MIGRATION_ASSIGN(dst, 165, uint8_t), MIGRATION_ASSIGN(dst, 170, uint8_t);
-  MIGRATION_ASSIGN(dst, 255, uint8_t), MIGRATION_ASSIGN(dst, 255, uint8_t);
+  migration_assign_uint8_t(&dst, 4), migration_assign_uint8_t(&dst, 20);
+  migration_assign_uint8_t(&dst, 85), migration_assign_uint8_t(&dst, 95);
+  migration_assign_uint8_t(&dst, 165), migration_assign_uint8_t(&dst, 170);
+  migration_assign_uint8_t(&dst, 255), migration_assign_uint8_t(&dst, 255);
   // Default `keyboard_enabled` and `snappy_joystick` to true
-  MIGRATION_ASSIGN(dst, 0b00001001, uint8_t);
+  migration_assign_uint8_t(&dst, 0b00001001);
   // Copy `tick_rate`
-  MIGRATION_MEMCPY(dst, src, 1);
+  migration_memcpy(&dst, &src, 1);
 
   return true;
 }

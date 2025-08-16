@@ -178,7 +178,7 @@ typedef struct __attribute__((packed)) {
   uint8_t layer;
   uint8_t key;
   uint8_t type;
-  union {
+  union __attribute__((packed)) {
     null_bind_t null_bind;
     dynamic_keystroke_t dynamic_keystroke;
     tap_hold_t tap_hold;
@@ -225,7 +225,7 @@ typedef struct __attribute__((packed)) {
   // 4 points that define the analog curve, representing the relationship
   // between the key position and the gamepad analog value
   uint8_t analog_curve[4][2];
-  union {
+  union __attribute__((packed)) {
     struct __attribute__((packed)) {
       // Whether to enable the layout processing for this profile
       bool keyboard_enabled : 1;
