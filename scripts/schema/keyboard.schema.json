@@ -76,6 +76,10 @@
       "type": "object",
       "description": "Analog configuration",
       "properties": {
+        "adc_resolution": {
+          "type": "integer",
+          "description": "ADC resolution for this keyboard. A higher value means higher accuracy but slower matrix scans. Default to the maximum resolution supported by the MCU if not provided."
+        },
         "invert_adc": {
           "type": "boolean",
           "description": "Set to true if the ADC value is inversely proportional to the travel distance of the keys"

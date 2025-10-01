@@ -106,3 +106,14 @@ def to_adc_input_array(channels_or_pins: list[str | int], driver_json: dict):
             assert x < len(adc_input_pins)
             channels.append(x)
     return to_c_array(channels)
+
+
+def get_adc_resolution(kb_json: dict, driver_json: dict):
+    """
+    Get the ADC resolution, or default to the maximum resolution supported by the MCU
+    """
+    return (
+        kb_json["analog"]["adc_resolution"]
+        if "adc_resolution" in kb_json["analog"]
+        else driver_json["metadata"]["max_adc_resolution"]
+    )

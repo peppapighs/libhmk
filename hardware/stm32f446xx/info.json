@@ -9,7 +9,7 @@
     "mcu": "stm32f4"
   },
   "metadata": {
-    "adc_bits": 12,
+    "max_adc_resolution": 12,
     "adc_input_pins": [
       "A0",
       "A1",

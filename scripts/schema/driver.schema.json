@@ -37,9 +37,9 @@
       "type": "object",
       "description": "Additional metadata about the driver.",
       "properties": {
-        "adc_bits": {
+        "max_adc_resolution": {
           "type": "integer",
-          "description": "The number of bits for the ADC resolution."
+          "description": "Maximum ADC resolution supported by the MCU."
         },
         "adc_input_pins": {
           "type": "array",
@@ -47,7 +47,7 @@
           "items": { "type": "string" }
         }
       },
-      "required": ["adc_bits", "adc_input_pins"]
+      "required": ["max_adc_resolution", "adc_input_pins"]
     }
   }
 }

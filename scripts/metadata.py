@@ -38,7 +38,7 @@ metadata = {
     "name": kb_json["name"],
     "vendorId": kb_json["usb"]["vid"],
     "productId": kb_json["usb"]["pid"],
-    "adcBits": driver_json["metadata"]["adc_bits"],
+    "adcResolution": utils.get_adc_resolution(kb_json, driver_json),
     "numProfiles": kb_json["keyboard"]["num_profiles"],
     "numLayers": kb_json["keyboard"]["num_layers"],
     "numKeys": kb_json["keyboard"]["num_keys"],
@@ -52,6 +52,7 @@ compressed = gzip.compress(uncompressed)
 
 print(f"Uncompressed metadata size: {len(uncompressed)} bytes")
 print(f"Compressed metadata size: {len(compressed)} bytes")
+print(json.dumps(metadata, indent=2))
 
 with open(os.path.join("include", "metadata.h"), "w") as f:
     f.write(METADATA_HEADER.format(utils.to_c_array(compressed)))

@@ -50,6 +50,8 @@ build_flags.define("USB_VENDOR_ID", kb_json["usb"]["vid"])
 build_flags.define("USB_PRODUCT_ID", kb_json["usb"]["pid"])
 
 # Analog Configuration
+build_flags.define("ADC_RESOLUTION", utils.get_adc_resolution(kb_json, driver_json))
+
 if kb_json["analog"].get("invert_adc", False):
     build_flags.define("MATRIX_INVERT_ADC_VALUES")
 

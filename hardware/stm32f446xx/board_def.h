@@ -42,12 +42,23 @@
 // Number of ADC channels
 #define ADC_NUM_CHANNELS 16
 
-// ADC resolution in bits
-#define ADC_RESOLUTION 12
 // Maximum ADC value
 #define ADC_MAX_VALUE ((1 << ADC_RESOLUTION) - 1)
 
 #if !defined(ADC_NUM_SAMPLE_CYCLES)
 // Number of sample cycles for each ADC conversion
 #define ADC_NUM_SAMPLE_CYCLES ADC_SAMPLETIME_3CYCLES
+#endif
+
+// ADC resolution in bits, set by `scripts/make.py`
+#if ADC_RESOLUTION == 12
+#define ADC_RESOLUTION_HAL ADC_RESOLUTION_12B
+#elif ADC_RESOLUTION == 10
+#define ADC_RESOLUTION_HAL ADC_RESOLUTION_10B
+#elif ADC_RESOLUTION == 8
+#define ADC_RESOLUTION_HAL ADC_RESOLUTION_8B
+#elif ADC_RESOLUTION == 6
+#define ADC_RESOLUTION_HAL ADC_RESOLUTION_6B
+#else
+#error "Unsupported ADC resolution"
 #endif
