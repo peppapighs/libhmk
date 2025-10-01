@@ -43,7 +43,10 @@
 #define ADC_NUM_CHANNELS 16
 
 // ADC resolution in bits
-#define ADC_RESOLUTION 12
+#if !defined(ADC_RESOLUTION)
+#define ADC_RESOLUTION MAX_ADC_RESOLUTION
+#endif
+
 // Maximum ADC value
 #define ADC_MAX_VALUE ((1 << ADC_RESOLUTION) - 1)
 

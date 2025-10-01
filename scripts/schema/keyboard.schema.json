@@ -76,6 +76,11 @@
       "type": "object",
       "description": "Analog configuration",
       "properties": {
+        "resolution": {
+          "type": "integer",
+          "description": "The ADC resolution for this keyboard. A higher value means higher accuracy but slower matrix scans",
+          "minimum": 8
+        },
         "invert_adc": {
           "type": "boolean",
           "description": "Set to true if the ADC value is inversely proportional to the travel distance of the keys"

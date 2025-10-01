@@ -39,7 +39,8 @@
       "properties": {
         "adc_bits": {
           "type": "integer",
-          "description": "The number of bits for the ADC resolution."
+          "description": "The number of bits for the ADC resolution.",
+          "minimum": 8
         },
         "adc_input_pins": {
           "type": "array",
