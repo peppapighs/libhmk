@@ -38,7 +38,7 @@ metadata = {
     "name": kb_json["name"],
     "vendorId": kb_json["usb"]["vid"],
     "productId": kb_json["usb"]["pid"],
-    "adcBits": driver_json["metadata"]["adc_bits"],
+    "adcBits": kb_json["analog"]["resolution"] if "resolution" in kb_json["analog"] else driver_json["metadata"]["adc_bits"],
     "numProfiles": kb_json["keyboard"]["num_profiles"],
     "numLayers": kb_json["keyboard"]["num_layers"],
     "numKeys": kb_json["keyboard"]["num_keys"],
