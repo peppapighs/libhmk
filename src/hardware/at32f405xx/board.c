@@ -246,10 +246,21 @@ uint32_t board_cycle_count(void) { return DWT->CYCCNT; }
 // Interrupt Handlers
 //--------------------------------------------------------------------+
 
-void OTGFS1_IRQHandler(void) { tud_int_handler(0); }
+// AT32F405 has a weird behavior, where it receives a suspend interrupt
+// before the device is connected. TinyUSB's `dcd_int_handler` then disables
+// the suspend interrupt, even though it should be ignored. As a result,
+// the device is stuck in the suspend state, so we force enable the suspend
+// interrupt after returning from TinyUSB interrupt handler.
+//
+// TODO: Remove this temporary workaround once
+// https://github.com/hathach/tinyusb/issues/3315 is fixed.
 
-void OTGFS1_WKUP_IRQHandler(void) { tud_int_handler(0); }
+void OTGFS1_IRQHandler(void) {
+  tud_int_handler(0);
+  OTG1_GLOBAL->gintmsk_bit.usbsuspmsk = 1;
+}
 
-void OTGHS_IRQHandler(void) { tud_int_handler(1); }
-
-void OTGHS_WKUP_IRQHandler(void) { tud_int_handler(1); }
+void OTGHS_IRQHandler(void) {
+  tud_int_handler(1);
+  OTG2_GLOBAL->gintmsk_bit.usbsuspmsk = 1;
+}
