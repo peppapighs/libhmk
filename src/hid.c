@@ -18,6 +18,7 @@
 #include "bitmap.h"
 #include "commands.h"
 #include "keycodes.h"
+#include "matrix.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
 
@@ -44,7 +45,8 @@ static void hid_send_keyboard_report(void) {
     return;
 
   prev_kb_report = kb_report;
-  tud_hid_n_report(USB_ITF_KEYBOARD, 0, &kb_report, sizeof(kb_report));
+  if (tud_hid_n_report(USB_ITF_KEYBOARD, 0, &kb_report, sizeof(kb_report)))
+    matrix_reset_inactivity_timer();
 }
 
 /**
@@ -67,8 +69,9 @@ static void hid_send_hid_report(uint8_t starting_report_id) {
         // Don't send the report if it hasn't changed
         break;
       prev_system_report = system_report;
-      tud_hid_n_report(USB_ITF_HID, report_id, &system_report,
-                       sizeof(system_report));
+      if (tud_hid_n_report(USB_ITF_HID, report_id, &system_report,
+                           sizeof(system_report)))
+        matrix_reset_inactivity_timer();
       return;
 
     case REPORT_ID_CONSUMER_CONTROL:
@@ -76,8 +79,9 @@ static void hid_send_hid_report(uint8_t starting_report_id) {
         // Don't send the report if it hasn't changed
         break;
       prev_consumer_report = consumer_report;
-      tud_hid_n_report(USB_ITF_HID, report_id, &consumer_report,
-                       sizeof(consumer_report));
+      if (tud_hid_n_report(USB_ITF_HID, report_id, &consumer_report,
+                           sizeof(consumer_report)))
+        matrix_reset_inactivity_timer();
       return;
 
     case REPORT_ID_MOUSE:
@@ -86,8 +90,9 @@ static void hid_send_hid_report(uint8_t starting_report_id) {
         // Don't send the report if it hasn't changed
         break;
       prev_mouse_report = mouse_report;
-      tud_hid_n_report(USB_ITF_HID, report_id, &mouse_report,
-                       sizeof(mouse_report));
+      if (tud_hid_n_report(USB_ITF_HID, report_id, &mouse_report,
+                           sizeof(mouse_report)))
+        matrix_reset_inactivity_timer();
       return;
 
     default:

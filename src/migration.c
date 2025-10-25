@@ -22,6 +22,10 @@ static bool v1_1_global_config_func(uint8_t *dst, const uint8_t *src);
 static bool v1_1_profile_config_func(uint8_t profile, uint8_t *dst,
                                      const uint8_t *src);
 
+static bool v1_2_global_config_func(uint8_t *dst, const uint8_t *src);
+static bool v1_2_profile_config_func(uint8_t profile, uint8_t *dst,
+                                     const uint8_t *src);
+
 // Migration metadata for each configuration version. The first entry is
 // reserved for the initial version (v1.0) which does not require migration.
 static const migration_t migrations[] = {
@@ -46,6 +50,21 @@ static const migration_t migrations[] = {
         ,
         .global_config_func = v1_1_global_config_func,
         .profile_config_func = v1_1_profile_config_func,
+    },
+    {
+        .version = 0x0102,
+        .global_config_size = 14             // Other fields
+                              + NUM_KEYS * 2 // Bottom-out threshold
+        ,
+        .profile_config_size = NUM_LAYERS * NUM_KEYS    // Keymap
+                               + NUM_KEYS * 4           // Actuation map
+                               + NUM_ADVANCED_KEYS * 12 // Advanced keys
+                               + NUM_KEYS               // Gamepad buttons
+                               + 9                      // Gamepad options
+                               + 1                      // Tick rate
+        ,
+        .global_config_func = v1_2_global_config_func,
+        .profile_config_func = v1_2_profile_config_func,
     },
 };
 
@@ -182,6 +201,35 @@ bool v1_1_profile_config_func(uint8_t profile, uint8_t *dst,
   migration_assign_uint8_t(&dst, 0b00001001);
   // Copy `tick_rate`
   migration_memcpy(&dst, &src, 1);
+
+  return true;
+}
+
+//--------------------------------------------------------------------+
+// v1.1 -> v1.2 Migration
+//--------------------------------------------------------------------+
+
+bool v1_2_global_config_func(uint8_t *dst, const uint8_t *src) {
+  if (((eeconfig_t *)src)->version != 0x0101)
+    // Expected version v1.0
+    return false;
+
+  // Copy `magic_start` to `calibration`
+  migration_memcpy(&dst, &src, 10);
+  // Set `bottom_out_threshold` to 0
+  migration_memset(&dst, 0, NUM_KEYS * 2);
+  // Copy `options` to `last_non_default_profile`
+  migration_memcpy(&dst, &src, 4);
+
+  return true;
+}
+
+bool v1_2_profile_config_func(uint8_t profile, uint8_t *dst,
+                              const uint8_t *src) {
+  // Copy the entire profile
+  migration_memcpy(&dst, &src,
+                   NUM_LAYERS * NUM_KEYS + NUM_KEYS * 4 +
+                       NUM_ADVANCED_KEYS * 12 + NUM_KEYS + 9 + 1);
 
   return true;
 }

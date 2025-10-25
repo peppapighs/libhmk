@@ -40,6 +40,12 @@
 #define MATRIX_CALIBRATION_EPSILON 5
 #endif
 
+#if !defined(MATRIX_INACTIVITY_TIMEOUT)
+// Inactivity timeout in milliseconds. Bottom-out threshold will be saved after
+// there is no HID activity for this duration.
+#define MATRIX_INACTIVITY_TIMEOUT 3000
+#endif
+
 //--------------------------------------------------------------------+
 // Key Matrix
 //--------------------------------------------------------------------+
@@ -88,9 +94,12 @@ void matrix_init(void);
  *
  * This function will block until the calibration process is complete.
  *
+ * @param reset_bottom_out_threshold Whether to reset the saved bottom-out
+ * threshold as well
+ *
  * @return None
  */
-void matrix_recalibrate(void);
+void matrix_recalibrate(bool reset_bottom_out_threshold);
 
 /**
  * @brief Update the key matrix to reflect the current state of the keys
@@ -111,3 +120,13 @@ void matrix_scan(void);
  * @return None
  */
 void matrix_disable_rapid_trigger(uint8_t key, bool disable);
+
+/**
+ * @brief Reset the inactivity timer
+ *
+ * This function should be called wherever a HID report is sent, or whenever we
+ * save the bottom-out threshold.
+ *
+ * @return None
+ */
+void matrix_reset_inactivity_timer(void);

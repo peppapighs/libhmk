@@ -35,21 +35,57 @@ matrix_analog_read(uint8_t key) {
 #endif
 }
 
+__attribute__((always_inline)) static inline uint16_t
+matrix_bottom_out_value(uint8_t key, uint16_t rest_value) {
+  return M_MIN(rest_value +
+                   M_MAX(eeconfig->calibration.initial_bottom_out_threshold,
+                         eeconfig->bottom_out_threshold[key]),
+               ADC_MAX_VALUE);
+}
+
 key_state_t key_matrix[NUM_KEYS];
 
 // Bitmap for tracking which keys have Rapid Trigger disabled
 static bitmap_t rapid_trigger_disabled[] = MAKE_BITMAP(NUM_KEYS);
+// Last time a HID activity was detected
+static uint32_t last_activity;
 
-void matrix_init(void) { matrix_recalibrate(); }
+/**
+ * @brief Save the current bottom-out threshold to the persistent configuration
+ *
+ * @return None
+ */
+static void matrix_save_bottom_out_threshold(void) {
+  uint16_t bottom_out_threshold[NUM_KEYS];
 
-void matrix_recalibrate(void) {
+  for (uint32_t i = 0; i < NUM_KEYS; i++) {
+    if (key_matrix[i].adc_bottom_out_value >= key_matrix[i].adc_rest_value)
+      bottom_out_threshold[i] =
+          key_matrix[i].adc_bottom_out_value - key_matrix[i].adc_rest_value;
+    else
+      bottom_out_threshold[i] = 0;
+  }
+  EECONFIG_WRITE(bottom_out_threshold, bottom_out_threshold);
+  matrix_reset_inactivity_timer();
+}
+
+void matrix_init(void) {
+  matrix_reset_inactivity_timer();
+  matrix_recalibrate(false);
+}
+
+void matrix_recalibrate(bool reset_bottom_out_threshold) {
+  if (reset_bottom_out_threshold) {
+    uint16_t bottom_out_threshold[NUM_KEYS] = {0};
+    EECONFIG_WRITE(bottom_out_threshold, bottom_out_threshold);
+    matrix_reset_inactivity_timer();
+  }
+
   for (uint32_t i = 0; i < NUM_KEYS; i++) {
     key_matrix[i].adc_filtered = eeconfig->calibration.initial_rest_value;
     key_matrix[i].adc_rest_value = eeconfig->calibration.initial_rest_value;
     key_matrix[i].adc_bottom_out_value =
-        M_MIN(eeconfig->calibration.initial_rest_value +
-                  eeconfig->calibration.initial_bottom_out_threshold,
-              ADC_MAX_VALUE);
+        matrix_bottom_out_value(i, eeconfig->calibration.initial_rest_value);
     key_matrix[i].distance = 0;
     key_matrix[i].extremum = 0;
     key_matrix[i].key_dir = KEY_DIR_INACTIVE;
@@ -78,9 +114,7 @@ void matrix_recalibrate(void) {
       // Update the bottom-out value to be the minimum bottom-out value based on
       // the updated rest value
       key_matrix[i].adc_bottom_out_value =
-          M_MIN(key_matrix[i].adc_rest_value +
-                    eeconfig->calibration.initial_bottom_out_threshold,
-                ADC_MAX_VALUE);
+          matrix_bottom_out_value(i, key_matrix[i].adc_rest_value);
     }
   }
 }
@@ -161,8 +195,14 @@ void matrix_scan(void) {
       }
     }
   }
+
+  // Save the bottom-out threshold after inactivity
+  if (timer_elapsed(last_activity) >= MATRIX_INACTIVITY_TIMEOUT)
+    matrix_save_bottom_out_threshold();
 }
 
 void matrix_disable_rapid_trigger(uint8_t key, bool disable) {
   bitmap_set(rapid_trigger_disabled, key, disable);
 }
+
+void matrix_reset_inactivity_timer(void) { last_activity = timer_read(); }

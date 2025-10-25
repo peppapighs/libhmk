@@ -53,12 +53,15 @@ void eeconfig_init(void) {
   } while (0)
 
 bool eeconfig_reset(void) {
+  uint16_t bottom_out_threshold[NUM_KEYS] = {0};
+
   // We must not perform any action here that requires reading from
   // the configuration as it may be in an invalid state.
   bool status = true;
   EECONFIG_WRITE_LOCAL(magic_start, EECONFIG_MAGIC_START);
   EECONFIG_WRITE_LOCAL(version, EECONFIG_VERSION);
   status &= EECONFIG_WRITE(calibration, &default_calibration);
+  status &= EECONFIG_WRITE(bottom_out_threshold, bottom_out_threshold);
   status &= EECONFIG_WRITE(options, &default_options);
   EECONFIG_WRITE_LOCAL(current_profile, 0);
   EECONFIG_WRITE_LOCAL(last_non_default_profile, M_MIN(1, NUM_PROFILES - 1));

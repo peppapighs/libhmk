@@ -22,10 +22,6 @@
 // Keyboard Persistent Configuration
 //--------------------------------------------------------------------+
 
-// Persistent configuration version. The size of the configuration must be
-// non-decreasing, so that the migration can assume that the new version is at
-// least as large as the previous version.
-#define EECONFIG_VERSION 0x0101
 // Magic number to identify the start of the configuration
 #define EECONFIG_MAGIC_START 0x0A42494C
 // Magic number to identify the end of the configuration
@@ -67,7 +63,15 @@ typedef struct __attribute__((packed)) {
   uint8_t tick_rate;
 } eeconfig_profile_t;
 
+// Persistent configuration version. The size of the configuration must be
+// non-decreasing, so that the migration can assume that the new version is at
+// least as large as the previous version.
+#define EECONFIG_VERSION 0x0102
+
 // Keyboard configuration
+// Whenever there is a change in the configuration, `EECONFIG_VERSION` must be
+// bumped. Make sure to update `eeconfig_reset()`, and add a migration function
+// in `migration.c`.
 typedef struct __attribute__((packed)) {
   // Global configurations
   // Magic number to identify the start of the configuration
@@ -77,6 +81,8 @@ typedef struct __attribute__((packed)) {
 
   // Calibration configuration
   eeconfig_calibration_t calibration;
+  // Saved bottom-out threshold
+  uint16_t bottom_out_threshold[NUM_KEYS];
   // Options configuration
   eeconfig_options_t options;
 
