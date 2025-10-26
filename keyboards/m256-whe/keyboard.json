@@ -5,7 +5,7 @@
   "usb": {
     "vid": "0xAB50",
     "pid": "0xAB65",
-    "port": "fs"
+    "port": "hs"
   },
   "keyboard": {
     "num_profiles": 4,
@@ -14,13 +14,13 @@
     "num_advanced_keys": 32
   },
   "hardware": {
-    "hse_value": 16000000,
-    "driver": "stm32f446xx"
+    "hse_value": 12000000,
+    "driver": "at32f405xx"
   },
   "analog": {
     "mux": {
-      "select": ["C13", "C14", "C15"],
-      "input": ["A3", "A4", "A2", "A5", "A1", "A6", "A0", "A7", "B0"],
+      "select": ["B13", "B12", "B10"],
+      "input": ["B1", "A3", "B0", "A4", "C5", "A5", "C4", "A6", "A7"],
       "matrix": [
         [3, 2, 1, 4, 5, 8, 6, 7],
         [15, 14, 13, 16, 9, 12, 10, 11],
