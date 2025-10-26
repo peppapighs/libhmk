@@ -111,6 +111,14 @@ static void board_reduce_power_consumption(void) {
 }
 #endif
 
+#if defined(BOARD_USB_FS)
+static otg_global_type *otg_global = OTG1_GLOBAL;
+#elif defined(BOARD_USB_HS)
+static otg_global_type *otg_global = OTG2_GLOBAL;
+#else
+#error "USB peripheral not defined"
+#endif
+
 /**
  * @brief Initialize the USB
  *
@@ -127,8 +135,6 @@ static void board_usb_init(void) {
   // Configure USB HS clock
   crm_periph_clock_enable(CRM_GPIOB_PERIPH_CLOCK, TRUE);
   crm_periph_clock_enable(CRM_OTGHS_PERIPH_CLOCK, TRUE);
-#else
-#error "USB peripheral not defined"
 #endif
 
   // Configure PLLU for USB
@@ -141,18 +147,14 @@ static void board_usb_init(void) {
   // Configure USB clock source to PLLU
   crm_usb_clock_source_select(CRM_USB_CLOCK_SOURCE_PLLU);
 
-#if defined(BOARD_USB_FS)
   // Ignore USB FS VBUS sensing
-  OTG1_GLOBAL->gccfg_bit.vbusig = TRUE;
+  otg_global->gccfg_bit.vbusig = TRUE;
+#if defined(BOARD_USB_FS)
   // Set NVIC priority for USB FS interrupt
   NVIC_SetPriority(OTGFS1_IRQn, 0);
 #elif defined(BOARD_USB_HS)
-  // Ignore USB HS VBUS sensing
-  OTG2_GLOBAL->gccfg_bit.vbusig = TRUE;
   // Set NVIC priority for USB HS interrupt
   NVIC_SetPriority(OTGHS_IRQn, 0);
-#else
-#error "USB peripheral not defined"
 #endif
 }
 
@@ -246,21 +248,22 @@ uint32_t board_cycle_count(void) { return DWT->CYCCNT; }
 // Interrupt Handlers
 //--------------------------------------------------------------------+
 
-// AT32F405 has a weird behavior, where it receives a suspend interrupt
-// before the device is connected. TinyUSB's `dcd_int_handler` then disables
-// the suspend interrupt, even though it should be ignored. As a result,
-// the device is stuck in the suspend state, so we force enable the suspend
-// interrupt after returning from TinyUSB interrupt handler.
-//
-// TODO: Remove this temporary workaround once
-// https://github.com/hathach/tinyusb/issues/3315 is fixed.
+// AT32F405 has a weird behavior, where if it has an unstable D+/D- during
+// startup, there will be a pending suspend interrupt before enumeration is
+// complete. This caused TinyUSB internal state to get stuck in a suspend state.
+// The issue was fixed in https://github.com/hathach/tinyusb/pull/3319.
 
-void OTGFS1_IRQHandler(void) {
-  tud_int_handler(0);
-  OTG1_GLOBAL->gintmsk_bit.usbsuspmsk = 1;
+void OTGFS1_IRQHandler(void) { tud_int_handler(0); }
+
+void OTGHS_IRQHandler(void) { tud_int_handler(1); }
+
+//--------------------------------------------------------------------+
+// TinyUSB Callbacks
+//--------------------------------------------------------------------+
+
+void tud_suspend_cb(bool remote_wakeup_en) {
+  // Stop PHY clock on suspend to save power
+  usb_open_phy_clk(otg_global);
 }
 
-void OTGHS_IRQHandler(void) {
-  tud_int_handler(1);
-  OTG2_GLOBAL->gintmsk_bit.usbsuspmsk = 1;
-}
+void tud_resume_cb(void) { usb_stop_phy_clk(otg_global); }
