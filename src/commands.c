@@ -143,6 +143,11 @@ void command_process(const uint8_t *buf) {
            M_MIN(sizeof(out->metadata.metadata), out->metadata.len));
     break;
   }
+  case COMMAND_GET_SERIAL: {
+    memset(out->serial, 0, sizeof(out->serial));
+    board_serial(out->serial);
+    break;
+  }
   case COMMAND_SET_KEYMAP: {
     const command_in_keymap_t *p = &in->keymap;
 

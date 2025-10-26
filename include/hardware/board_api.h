@@ -62,14 +62,14 @@ void board_enter_bootloader(void);
 /**
  * @brief Get the board serial number
  *
- * The serial number is a UTF-16-LE encoded string with a maximum length of 32
- * and no null terminator.
+ * The serial number is a UTF-8 string with a maximum length of 32 and no null
+ * terminator.
  *
  * @param buf Buffer to store the serial number
  *
  * @return Length of the serial number in characters
  */
-uint32_t board_serial(uint16_t *buf);
+uint32_t board_serial(char *buf);
 
 /**
  * @brief Get the current cycle count

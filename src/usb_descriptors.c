@@ -368,16 +368,20 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
 
   uint32_t chr_count;
   switch (index) {
-  case STR_ID_LANGID:
+  case STR_ID_LANGID: {
     memcpy(desc_str + 1, desc_strings[STR_ID_LANGID], 2);
     chr_count = 1;
     break;
-
-  case STR_ID_SERIAL:
-    chr_count = board_serial(&desc_str[1]);
+  }
+  case STR_ID_SERIAL: {
+    char serial_buf[32];
+    chr_count = board_serial(serial_buf);
+    // Convert ASCII to UTF-16-LE
+    for (uint32_t i = 0; i < chr_count; i++)
+      desc_str[i + 1] = serial_buf[i];
     break;
-
-  case 0xEE:
+  }
+  case 0xEE: {
     // Special string index for Microsoft OS 1.0 descriptor
     if (!eeconfig->options.xinput_enabled)
       // If XInput is not enabled, do not return the Microsoft OS 1.0
@@ -387,8 +391,8 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     // Microsoft OS 1.0 descriptor
     memcpy(desc_str, desc_ms_os_10, sizeof(desc_ms_os_10));
     return desc_str;
-
-  default:
+  }
+  default: {
     if (index >= STR_ID_COUNT)
       // Unknown string
       return NULL;
@@ -405,6 +409,7 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     for (uint32_t i = 0; i < chr_count; i++)
       desc_str[i + 1] = str[i];
     break;
+  }
   }
 
   // First byte is the length of the descriptor, second byte is the type

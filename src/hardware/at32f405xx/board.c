@@ -225,19 +225,13 @@ void board_enter_bootloader(void) {
   NVIC_SystemReset();
 }
 
-uint32_t board_serial(uint16_t *buf) {
-  static char serial_str[24 + 1];
-
-  const uint32_t *uid = (const uint32_t *)(0x1FFFF7E8);
+uint32_t board_serial(char *buf) {
+  const volatile uint8_t *uid = (const volatile uint8_t *)(0x1FFFF7E8);
   // Use the 96-bit unique ID as the serial number
   for (uint32_t i = 0; i < 12; i++) {
-    serial_str[i * 2] = M_HEX(uid[i] >> 4);
-    serial_str[i * 2 + 1] = M_HEX(uid[i] & 0x0F);
+    buf[i * 2] = M_HEX(uid[i] >> 4);
+    buf[i * 2 + 1] = M_HEX(uid[i] & 0x0F);
   }
-
-  // Convert ASCII string into UTF-16-LE
-  for (size_t i = 0; i < 24; i++)
-    buf[i] = serial_str[i];
 
   return 24;
 }

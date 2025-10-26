@@ -38,6 +38,7 @@ typedef enum {
   COMMAND_RESET_PROFILE,
   COMMAND_DUPLICATE_PROFILE,
   COMMAND_GET_METADATA,
+  COMMAND_GET_SERIAL,
 
   COMMAND_GET_KEYMAP = 128,
   COMMAND_SET_KEYMAP,
@@ -172,6 +173,8 @@ typedef struct __attribute__((packed)) {
     eeconfig_options_t options;
     // For `COMMAND_GET_METADATA`
     command_out_metadata_t metadata;
+    // For `COMMAND_GET_SERIAL`
+    char serial[32];
 
     // For `COMMAND_GET_KEYMAP`
     uint8_t keymap[63];
