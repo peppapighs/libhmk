@@ -1,0 +1,26 @@
+{
+  "platformio": {
+    "board": "genericSTM32F411CE",
+    "ldscript": "stm32f411ceux.ld",
+    "framework": "stm32cube",
+    "platform": "ststm32"
+  },
+  "tinyusb": {
+    "mcu": "stm32f4"
+  },
+  "metadata": {
+    "max_adc_resolution": 12,
+    "adc_input_pins": [
+      "A0",
+      "A1",
+      "A2",
+      "A3",
+      "A4",
+      "A5",
+      "A6",
+      "A7",
+      "B0",
+      "B1"
+    ]
+  }
+}

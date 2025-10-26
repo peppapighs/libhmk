@@ -82,7 +82,7 @@ def to_gpio_array(pins: list[str], driver: str):
     """
     Convert a list of GPIO pin names to a tuple of (port names, pin numbers)
     """
-    if driver == "stm32f446xx":
+    if driver == "stm32f446xx" or driver == "stm32f411xx":
         ports = [f"GPIO{pin[0]}" for pin in pins]
         pin_nums = [f"GPIO_PIN_{pin[1:]}" for pin in pins]
     elif driver == "at32f405xx":
