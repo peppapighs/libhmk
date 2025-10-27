@@ -151,22 +151,38 @@
       "required": ["initial_rest_value", "initial_bottom_out_threshold"]
     },
     "layout": {
-      "type": "array",
-      "description": "Metadata for how the keyboard should be rendered in the web configurator",
-      "items": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "key": { "type": "integer", "minimum": 0 },
-            "w": { "type": "number", "minimum": 1 },
-            "h": { "type": "number", "minimum": 1 },
-            "x": { "type": "number" },
-            "y": { "type": "number" }
-          },
-          "required": ["key"]
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "array",
+          "description": "Labels for each layout option. Use a string for a toggle option, or an array for a select option",
+          "items": { "type": ["string", "array"] }
+        },
+        "keymap": {
+          "type": "array",
+          "description": "Metadata for how the keyboard should be rendered in the web configurator",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": { "type": "integer", "minimum": 0 },
+                "w": { "type": "number", "minimum": 1 },
+                "h": { "type": "number", "minimum": 1 },
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "option": {
+                  "type": "array",
+                  "description": "Option key and value pairs for the corresponding labels",
+                  "items": { "type": "number" }
+                }
+              },
+              "required": ["key"]
+            }
+          }
         }
-      }
+      },
+      "required": ["keymap"]
     },
     "keymap": {
       "type": "array",
