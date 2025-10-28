@@ -30,12 +30,8 @@
 #define CFG_TUD_ENDPOINT0_SIZE 64
 
 // Driver configuration
-// Keyboard, generic, and raw HID interfaces + optionally log HID interface
-#if defined(LOG_ENABLED)
-#define CFG_TUD_HID 4
-#else
+// Keyboard, generic, and raw HID interfaces
 #define CFG_TUD_HID 3
-#endif
 
 // HID buffer size. Must be at least the size of the largest reports (+1 for
 // interface with multiple reports)

@@ -73,12 +73,6 @@ To develop a new keyboard, create a new directory under `keyboards/` with your k
 
 You can use an existing keyboard implementation as a reference. If your keyboard hardware isn't currently supported by the firmware, you'll need to implement the necessary drivers and features. See the [Porting](#porting) section for more details.
 
-### Debugging
-
-In addition to the debugging options provided by PlatformIO, you can use the `log_printf` function to log messages to the console. The function is available when you run the `setup.py` with the flag `--log` to enable logging. The function uses [`eyalroz/printf`](https://github.com/eyalroz/printf) as a backend for text formatting.
-
-The log messages will be sent to the HID interface, which can be viewed in [hid_listen](https://www.pjrc.com/teensy/hid_listen.html), [QMK CLI](https://docs.qmk.fm/cli_commands#qmk-console), or [QMK Toolbox](https://qmk.fm/toolbox) (buggy, not recommended).
-
 ## Porting
 
 ### Hardware Driver Structure
@@ -100,4 +94,3 @@ You can refer to existing hardware drivers as examples when implementing support
 - [@heiso](https://github.com/heiso/) for his [macrolev](https://github.com/heiso/macrolev) and his helpfulness throughout the development process.
 - [Wooting](https://wooting.io/) for pioneering Hall-effect gaming keyboards and introducing many advanced features based on analog input.
 - [GEONWORKS](https://geon.works/) for the Venom 60HE PCB and inspiring the web configurator.
-- [@eyalroz](https://github.com/eyalroz) for his work on the printf library and its integration into the firmware.

@@ -55,9 +55,6 @@ enum {
   USB_ITF_KEYBOARD = 0,
   USB_ITF_HID,
   USB_ITF_RAW_HID,
-#if defined(LOG_ENABLED)
-  USB_ITF_LOG,
-#endif
   // We intentionally put the XInput interface last, so that if it is not
   // enabled, we can subtract its size from the total configuration length
   // without affecting the other interfaces.
@@ -70,18 +67,12 @@ enum {
   EP_IN_ADDR_KEYBOARD = 0x81,
   EP_IN_ADDR_HID,
   EP_IN_ADDR_RAW_HID,
-#if defined(LOG_ENABLED)
-  EP_IN_ADDR_LOG,
-#endif
   EP_IN_ADDR_XINPUT,
 };
 
 // Out endpoint addresses
 enum {
   EP_OUT_ADDR_RAW_HID = 0x01,
-#if defined(LOG_ENABLED)
-  EP_OUT_ADDR_LOG,
-#endif
   EP_OUT_ADDR_XINPUT,
 };
 
@@ -141,15 +132,3 @@ _Static_assert(sizeof(hid_nkro_kb_report_t) < CFG_TUD_HID_EP_BUFSIZE,
 // buffer is full, resulting in missed reports.
 _Static_assert(RAW_HID_EP_SIZE == CFG_TUD_HID_EP_BUFSIZE,
                "Invalid Raw HID report size");
-
-//--------------------------------------------------------------------+
-// Log HID Report
-//--------------------------------------------------------------------+
-
-#if defined(LOG_ENABLED)
-#define LOG_EP_SIZE 32
-// Vendor defined usage page (PJRC Teensy compatible)
-#define LOG_USAGE_PAGE 0xFF31
-// Vendor defined usage ID (PJRC Teensy compatible)
-#define LOG_USAGE 0x74
-#endif

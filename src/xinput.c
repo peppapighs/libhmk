@@ -23,8 +23,6 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 
-#include "log.h"
-
 /**
  * @brief Convert square joystick coordinates to circular coordinates
  *

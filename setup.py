@@ -12,7 +12,6 @@ if __name__ == "__main__":
     ]
 
     parser = argparse.ArgumentParser(description="PlatformIO Project Setup")
-    parser.add_argument("--log", action="store_true", help="Enable logging")
     parser.add_argument(
         "--keyboard", "-k", choices=keyboards, required=True, help="Select a keyboard"
     )
@@ -40,11 +39,6 @@ if __name__ == "__main__":
         "pre:scripts/metadata.py",
     ]
     lib_deps = ["https://github.com/hathach/tinyusb.git"]
-
-    if args.log:
-        # Enable logging module
-        lib_deps.append("https://github.com/eyalroz/printf.git#develop")
-        build_flags.append("-DLOG_ENABLED")
 
     pio_config = configparser.ConfigParser()
     pio_config[f"env:{keyboard}"] = {

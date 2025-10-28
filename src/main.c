@@ -21,17 +21,12 @@
 #include "hardware/hardware.h"
 #include "hid.h"
 #include "layout.h"
-#include "log.h"
 #include "matrix.h"
 #include "tusb.h"
 #include "wear_leveling.h"
 #include "xinput.h"
 
 int main(void) {
-#if defined(LOG_ENABLED)
-  log_init();
-#endif
-
   // Initialize the hardware
   board_init();
   timer_init();
@@ -61,9 +56,6 @@ int main(void) {
     matrix_scan();
     layout_task();
     xinput_task();
-#if defined(LOG_ENABLED)
-    log_task();
-#endif
   }
 
   return 0;
