@@ -58,7 +58,7 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
    - `firmware.bin`: The binary firmware file
    - `firmware.elf`: The ELF firmware file
 
-6. Flash the firmware to your keyboard using your preferred method (e.g., DFU, ISP). If your keyboard has a DFU bootloader, you can set `upload_protocol = dfu` in `platformio.ini` and use the command `pio run --target upload` or the PlatformIO IDE's "Upload" option while the keyboard is in DFU mode.
+6. Flash the firmware to your keyboard using your preferred method (e.g., DFU, ISP). If your keyboard has a DFU bootloader, you can set `upload_protocol = dfu` in `platformio.ini` and use the command `pio run --target upload` or the PlatformIO IDE's "Upload" option while the keyboard is in DFU mode. If your browser supports WebUSB, you can also use [WebUSB DFU](https://devanlai.github.io/webdfu/dfu-util/) (Recommended method).
 
 ## Development
 
@@ -94,3 +94,4 @@ You can refer to existing hardware drivers as examples when implementing support
 - [@heiso](https://github.com/heiso/) for his [macrolev](https://github.com/heiso/macrolev) and his helpfulness throughout the development process.
 - [Wooting](https://wooting.io/) for pioneering Hall-effect gaming keyboards and introducing many advanced features based on analog input.
 - [GEONWORKS](https://geon.works/) for the Venom 60HE PCB and inspiring the web configurator.
+- [@devanlai](https://github.com/devanlai) for [WebUSB DFU](https://devanlai.github.io/webdfu/dfu-util/).
