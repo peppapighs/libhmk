@@ -30,6 +30,7 @@ static uint16_t system_report;
 static uint16_t consumer_report;
 static hid_mouse_report_t mouse_report;
 
+#if !defined(HID_DISABLED)
 /**
  * @brief Send the keyboard report
  *
@@ -48,6 +49,7 @@ static void hid_send_keyboard_report(void) {
   if (tud_hid_n_report(USB_ITF_KEYBOARD, 0, &kb_report, sizeof(kb_report)))
     matrix_reset_inactivity_timer();
 }
+#endif
 
 /**
  * @brief Find the next available report and send it
