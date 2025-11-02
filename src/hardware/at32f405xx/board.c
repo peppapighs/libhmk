@@ -257,7 +257,7 @@ void OTGHS_IRQHandler(void) { tud_int_handler(1); }
 
 void tud_suspend_cb(bool remote_wakeup_en) {
   // Stop PHY clock on suspend to save power
-  usb_open_phy_clk(otg_global);
+  usb_stop_phy_clk(otg_global);
 }
 
-void tud_resume_cb(void) { usb_stop_phy_clk(otg_global); }
+void tud_resume_cb(void) { usb_open_phy_clk(otg_global); }
