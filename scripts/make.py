@@ -38,6 +38,7 @@ build_flags.define("CFG_TUSB_MCU", f"OPT_MCU_{driver_json['tinyusb']['mcu'].uppe
 
 # Clock Configuration
 build_flags.define("BOARD_HSE_VALUE", kb_json["hardware"]["hse_value"])
+build_flags.define("HSE_VALUE", kb_json["hardware"]["hse_value"])
 
 # USB Configuration
 if kb_json["usb"]["port"] == "fs":
