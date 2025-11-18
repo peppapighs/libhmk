@@ -49,6 +49,10 @@ int main(void) {
 
   tud_init(BOARD_TUD_RHPORT);
 
+  timer_buzzer_start();
+  timer_delay(1000);
+  timer_buzzer_stop();
+  
   while (1) {
     tud_task();
 

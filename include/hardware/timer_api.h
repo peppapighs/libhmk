@@ -59,3 +59,17 @@ __attribute__((always_inline)) static inline void timer_delay(uint32_t ms) {
   while (timer_elapsed(start) < ms)
     ;
 }
+
+/**
+ * @brief Start the board buzzer sine wave
+ *
+ * @return None
+ */
+void timer_buzzer_start(void);
+
+/**
+ * @brief Stop the board buzzer sine wave
+ *
+ * @return None
+ */
+void timer_buzzer_stop(void);
