@@ -3,8 +3,8 @@
   "manufacturer": "Norbauer+co",
   "maintainer": "Yiancar-Designs LTD",
   "usb": {
-    "vid": "0xAB50",
-    "pid": "0xABCC",
+    "vid": "0x8968",
+    "pid": "0x4E43",
     "port": "fs"
   },
   "keyboard": {
