@@ -196,8 +196,9 @@ void matrix_scan(void) {
     }
   }
 
-  // Save the bottom-out threshold after inactivity
-  if (timer_elapsed(last_activity) >= MATRIX_INACTIVITY_TIMEOUT)
+  // Save the bottom-out threshold after inactivity if enabled
+  if (eeconfig->options.save_bottom_out_threshold &&
+      timer_elapsed(last_activity) >= MATRIX_INACTIVITY_TIMEOUT)
     matrix_save_bottom_out_threshold();
 }
 

@@ -47,8 +47,10 @@ typedef union __attribute__((packed)) {
   struct __attribute__((packed)) {
     // Whether the XInput interface is enabled
     bool xinput_enabled : 1;
+    // Whether to save the bottom-out threshold
+    bool save_bottom_out_threshold : 1;
     // Reserved bits for future use
-    uint16_t reserved : 15;
+    uint16_t reserved : 14;
   };
   uint16_t raw;
 } eeconfig_options_t;
@@ -66,7 +68,7 @@ typedef struct __attribute__((packed)) {
 // Persistent configuration version. The size of the configuration must be
 // non-decreasing, so that the migration can assume that the new version is at
 // least as large as the previous version.
-#define EECONFIG_VERSION 0x0102
+#define EECONFIG_VERSION 0x0103
 
 // Keyboard configuration
 // Whenever there is a change in the configuration, `EECONFIG_VERSION` must be
