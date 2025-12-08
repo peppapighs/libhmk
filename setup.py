@@ -38,7 +38,7 @@ if __name__ == "__main__":
         "pre:scripts/make.py",
         "pre:scripts/metadata.py",
     ]
-    lib_deps = ["https://github.com/hathach/tinyusb.git"]
+    lib_deps = ["https://github.com/hathach/tinyusb.git#0.20.0"]
 
     pio_config = configparser.ConfigParser()
     pio_config[f"env:{keyboard}"] = {
