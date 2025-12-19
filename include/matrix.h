@@ -42,7 +42,7 @@
 
 #if !defined(MATRIX_INACTIVITY_TIMEOUT)
 // Inactivity timeout in milliseconds. Bottom-out threshold will be saved after
-// there is no HID activity for this duration.
+// there is no change to the threshold of any key for this duration.
 #define MATRIX_INACTIVITY_TIMEOUT 3000
 #endif
 
@@ -120,13 +120,3 @@ void matrix_scan(void);
  * @return None
  */
 void matrix_disable_rapid_trigger(uint8_t key, bool disable);
-
-/**
- * @brief Reset the inactivity timer
- *
- * This function should be called wherever a HID report is sent, or whenever we
- * save the bottom-out threshold.
- *
- * @return None
- */
-void matrix_reset_inactivity_timer(void);
