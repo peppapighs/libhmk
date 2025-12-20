@@ -245,8 +245,6 @@ void xinput_task(void) {
     usbd_edpt_release(0, endpoint_in);
     // Update the last report to the current one
     memcpy(&last_report, &report, sizeof(xinput_report_t));
-    // A report is sent, so we reset the inactivity timer.
-    matrix_reset_inactivity_timer();
   }
 
   // Reset analog states for the next scan
