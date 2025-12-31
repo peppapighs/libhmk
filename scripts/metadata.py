@@ -38,6 +38,7 @@ metadata = {
     "name": kb_json["name"],
     "vendorId": kb_json["usb"]["vid"],
     "productId": kb_json["usb"]["pid"],
+    "usbHighSpeed": kb_json["usb"]["port"] == "hs",
     "adcResolution": utils.get_adc_resolution(kb_json, driver_json),
     "numProfiles": kb_json["keyboard"]["num_profiles"],
     "numLayers": kb_json["keyboard"]["num_layers"],
