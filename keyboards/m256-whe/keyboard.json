@@ -18,9 +18,10 @@
     "driver": "at32f405xx"
   },
   "analog": {
+    "invert_adc": true,
     "mux": {
-      "select": ["B13", "B12", "B10"],
-      "input": ["B1", "A3", "B0", "A4", "C5", "A5", "C4", "A6", "A7"],
+      "select": ["C0", "C1", "C2"],
+      "input": ["A3", "A4", "A2", "A5", "A1", "A6", "A0", "A7", "C4"],
       "matrix": [
         [3, 2, 1, 4, 5, 8, 6, 7],
         [15, 14, 13, 16, 9, 12, 10, 11],
@@ -35,8 +36,8 @@
     }
   },
   "calibration": {
-    "initial_rest_value": 2300,
-    "initial_bottom_out_threshold": 600
+    "initial_rest_value": 2500,
+    "initial_bottom_out_threshold": 450
   },
   "layout": {
     "labels": ["Split Backspace"],

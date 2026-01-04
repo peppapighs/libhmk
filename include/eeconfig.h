@@ -125,7 +125,12 @@ extern const eeconfig_t *eeconfig;
 
 #if !defined(DEFAULT_OPTIONS)
 // Default global options
-#define DEFAULT_OPTIONS {.xinput_enabled = false}
+#define DEFAULT_OPTIONS                                                        \
+  {                                                                            \
+      .xinput_enabled = false,                                                 \
+      .save_bottom_out_threshold = true,                                       \
+      .high_polling_rate_enabled = true,                                       \
+  }
 #endif
 
 #if !defined(DEFAULT_KEYMAP)
