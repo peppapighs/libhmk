@@ -62,7 +62,7 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
 
 ## Development
 
-The development branch is `dev`, which contains the latest features and bug fixes. The corresponding `dev` branch of [hmkconf](https://github.com/peppapighs/hmkconf/tree/dev) deployed at [https://hmkdev.prasertsuk.com](https://hmkdev.prasertsuk.com) is required to configure the `dev` branch of the firmware. To contribute, please create a pull request against the `dev` branch.
+The development branch is `dev`, which contains the latest features and bug fixes. The corresponding `dev` branch of [hmkconf](https://github.com/peppapighs/hmkconf/tree/dev) deployed at [https://dev.hmkconf.com](https://dev.hmkconf.com) is required to configure the `dev` branch of the firmware. To contribute, please create a pull request against the `dev` branch.
 
 ### Developing a New Keyboard
 
