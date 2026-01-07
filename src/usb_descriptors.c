@@ -108,28 +108,7 @@ static const uint8_t desc_raw_hid_report[] = {
    XINPUT_DESC_LEN)
 
 // Configuration descriptor
-static uint8_t desc_configuration[] = {
-    // Configuration descriptor header. Request maximum 500mA for the device
-    TUD_CONFIG_DESCRIPTOR(1, USB_ITF_COUNT, 0, CONFIG_TOTAL_LEN,
-                          TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 500),
-    // Keyboard interface descriptor. Request highest polling interval
-    TUD_HID_DESCRIPTOR(USB_ITF_KEYBOARD, 0, HID_ITF_PROTOCOL_KEYBOARD,
-                       sizeof(desc_keyboard_report), EP_IN_ADDR_KEYBOARD,
-                       CFG_TUD_HID_EP_BUFSIZE, 1),
-    // HID interface descriptor. Request highest polling interval
-    TUD_HID_DESCRIPTOR(USB_ITF_HID, 0, HID_ITF_PROTOCOL_NONE,
-                       sizeof(desc_hid_report), EP_IN_ADDR_HID,
-                       CFG_TUD_HID_EP_BUFSIZE, 1),
-    // Raw HID interface descriptor. Request highest polling interval
-    TUD_HID_INOUT_DESCRIPTOR(USB_ITF_RAW_HID, 0, HID_ITF_PROTOCOL_NONE,
-                             sizeof(desc_raw_hid_report), EP_OUT_ADDR_RAW_HID,
-                             EP_IN_ADDR_RAW_HID, RAW_HID_EP_SIZE, 1),
-    // XInput interface descriptor
-    XINPUT_DESCRIPTOR(USB_ITF_XINPUT, 0, EP_OUT_ADDR_XINPUT, EP_IN_ADDR_XINPUT),
-};
-
-_Static_assert(M_ARRAY_SIZE(desc_configuration) == CONFIG_TOTAL_LEN,
-               "Invalid configuration descriptor size");
+static uint8_t desc_configuration[CONFIG_TOTAL_LEN];
 
 #if defined(BOARD_USB_HS)
 // Device qualifier descriptor for USB HS
@@ -274,24 +253,57 @@ _Static_assert(M_ARRAY_SIZE(desc_ms_os_10_properties) ==
 //--------------------------------------------------------------------+
 
 /**
- * @brief Update the configuration descriptor based on the current persistent
+ * @brief Generate the configuration descriptor based on the current persistent
  * configuration
  *
- * This function must be called before returning the configuration descriptor.
- *
- * @param desc Pointer to the configuration descriptor
+ * @param dst Buffer to write to
  *
  * @return None
  */
-static void update_desc_configuration(uint8_t *desc) {
-  tusb_desc_configuration_t *config = (tusb_desc_configuration_t *)desc;
-
+static void generate_desc_configuration(uint8_t *dst) {
+  uint8_t num_interfaces = USB_ITF_COUNT;
+  uint16_t total_length = CONFIG_TOTAL_LEN;
   if (!eeconfig->options.xinput_enabled) {
     // If XInput is not enabled, subtract the XInput descriptor length
     // from the total configuration length.
-    config->bNumInterfaces = USB_ITF_COUNT - 1;
-    config->wTotalLength = CONFIG_TOTAL_LEN - XINPUT_DESC_LEN;
+    num_interfaces--;
+    total_length -= XINPUT_DESC_LEN;
   }
+
+  uint8_t polling_interval = 1;
+#if defined(BOARD_USB_HS)
+  if (!eeconfig->options.high_polling_rate_enabled)
+    // If high polling rate is not enabled, use 1kHz polling rate = 8 frames for
+    // USB HS instead.
+    polling_interval = 8;
+#endif
+
+  const uint8_t src[] = {
+      // Configuration descriptor header. Request maximum 500mA for the device
+      TUD_CONFIG_DESCRIPTOR(1, num_interfaces, 0, total_length,
+                            TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 500),
+      // Keyboard interface descriptor
+      TUD_HID_DESCRIPTOR(USB_ITF_KEYBOARD, 0, HID_ITF_PROTOCOL_KEYBOARD,
+                         sizeof(desc_keyboard_report), EP_IN_ADDR_KEYBOARD,
+                         CFG_TUD_HID_EP_BUFSIZE, polling_interval),
+      // HID interface descriptor
+      TUD_HID_DESCRIPTOR(USB_ITF_HID, 0, HID_ITF_PROTOCOL_NONE,
+                         sizeof(desc_hid_report), EP_IN_ADDR_HID,
+                         CFG_TUD_HID_EP_BUFSIZE, polling_interval),
+      // Raw HID interface descriptor
+      TUD_HID_INOUT_DESCRIPTOR(USB_ITF_RAW_HID, 0, HID_ITF_PROTOCOL_NONE,
+                               sizeof(desc_raw_hid_report), EP_OUT_ADDR_RAW_HID,
+                               EP_IN_ADDR_RAW_HID, RAW_HID_EP_SIZE,
+                               polling_interval),
+      // XInput interface descriptor
+      XINPUT_DESCRIPTOR(USB_ITF_XINPUT, 0, EP_OUT_ADDR_XINPUT,
+                        EP_IN_ADDR_XINPUT),
+  };
+
+  _Static_assert(sizeof(src) == CONFIG_TOTAL_LEN,
+                 "Invalid configuration descriptor size");
+
+  memcpy(dst, src, sizeof(src));
 }
 
 const uint8_t *tud_descriptor_device_cb(void) {
@@ -317,7 +329,7 @@ const uint8_t *tud_hid_descriptor_report_cb(uint8_t instance) {
 
 const uint8_t *tud_descriptor_configuration_cb(uint8_t index) {
   // We only have one configuration so we don't need to check the index
-  update_desc_configuration(desc_configuration);
+  generate_desc_configuration(desc_configuration);
   return desc_configuration;
 }
 
@@ -327,10 +339,9 @@ const uint8_t *tud_descriptor_device_qualifier_cb(void) {
 }
 
 const uint8_t *tud_descriptor_other_speed_configuration_cb(uint8_t index) {
-  memcpy(desc_other_speed_config, desc_configuration, CONFIG_TOTAL_LEN);
+  generate_desc_configuration(desc_other_speed_config);
   desc_other_speed_config[1] = TUSB_DESC_OTHER_SPEED_CONFIG;
 
-  update_desc_configuration(desc_other_speed_config);
   return desc_other_speed_config;
 }
 #endif

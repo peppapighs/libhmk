@@ -49,11 +49,17 @@ typedef union __attribute__((packed)) {
     bool xinput_enabled : 1;
     // Whether to save the bottom-out threshold
     bool save_bottom_out_threshold : 1;
+    // Whether 8kHz polling rate is enabled. Only applicable if USB HS is
+    // enabled. If disabled, the 1kHz polling rate is used instead.
+    bool high_polling_rate_enabled : 1;
     // Reserved bits for future use
-    uint16_t reserved : 14;
+    uint16_t reserved : 13;
   };
   uint16_t raw;
 } eeconfig_options_t;
+
+_Static_assert(sizeof(eeconfig_options_t) == sizeof(uint16_t),
+               "Invalid eeconfig_options_t size");
 
 // Keyboard profile configuration
 typedef struct __attribute__((packed)) {
@@ -68,7 +74,7 @@ typedef struct __attribute__((packed)) {
 // Persistent configuration version. The size of the configuration must be
 // non-decreasing, so that the migration can assume that the new version is at
 // least as large as the previous version.
-#define EECONFIG_VERSION 0x0103
+#define EECONFIG_VERSION 0x0104
 
 // Keyboard configuration
 // Whenever there is a change in the configuration, `EECONFIG_VERSION` must be
@@ -119,7 +125,12 @@ extern const eeconfig_t *eeconfig;
 
 #if !defined(DEFAULT_OPTIONS)
 // Default global options
-#define DEFAULT_OPTIONS {.xinput_enabled = false}
+#define DEFAULT_OPTIONS                                                        \
+  {                                                                            \
+      .xinput_enabled = false,                                                 \
+      .save_bottom_out_threshold = true,                                       \
+      .high_polling_rate_enabled = true,                                       \
+  }
 #endif
 
 #if !defined(DEFAULT_KEYMAP)

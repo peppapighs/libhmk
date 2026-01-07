@@ -30,6 +30,10 @@ static bool v1_3_global_config_func(uint8_t *dst, const uint8_t *src);
 static bool v1_3_profile_config_func(uint8_t profile, uint8_t *dst,
                                      const uint8_t *src);
 
+static bool v1_4_global_config_func(uint8_t *dst, const uint8_t *src);
+static bool v1_4_profile_config_func(uint8_t profile, uint8_t *dst,
+                                     const uint8_t *src);
+
 // Migration metadata for each configuration version. The first entry is
 // reserved for the initial version (v1.0) which does not require migration.
 static const migration_t migrations[] = {
@@ -84,6 +88,21 @@ static const migration_t migrations[] = {
         ,
         .global_config_func = v1_3_global_config_func,
         .profile_config_func = v1_3_profile_config_func,
+    },
+    {
+        .version = 0x0104,
+        .global_config_size = 14             // Other fields
+                              + NUM_KEYS * 2 // Bottom-out threshold
+        ,
+        .profile_config_size = NUM_LAYERS * NUM_KEYS    // Keymap
+                               + NUM_KEYS * 4           // Actuation map
+                               + NUM_ADVANCED_KEYS * 12 // Advanced keys
+                               + NUM_KEYS               // Gamepad buttons
+                               + 9                      // Gamepad options
+                               + 1                      // Tick rate
+        ,
+        .global_config_func = v1_4_global_config_func,
+        .profile_config_func = v1_4_profile_config_func,
     },
 };
 
@@ -275,6 +294,37 @@ bool v1_3_global_config_func(uint8_t *dst, const uint8_t *src) {
 }
 
 bool v1_3_profile_config_func(uint8_t profile, uint8_t *dst,
+                              const uint8_t *src) {
+  // Copy the entire profile
+  migration_memcpy(&dst, &src,
+                   NUM_LAYERS * NUM_KEYS + NUM_KEYS * 4 +
+                       NUM_ADVANCED_KEYS * 12 + NUM_KEYS + 9 + 1);
+
+  return true;
+}
+
+//--------------------------------------------------------------------+
+// v1.3 -> v1.4 Migration
+//--------------------------------------------------------------------+
+
+bool v1_4_global_config_func(uint8_t *dst, const uint8_t *src) {
+  if (((eeconfig_t *)src)->version != 0x0103)
+    // Expected version v1.3
+    return false;
+
+  // Copy `magic_start` to `bottom_out_threshold`
+  migration_memcpy(&dst, &src, 10 + NUM_KEYS * 2);
+  // Default `high_polling_rate_enabled` to true
+  uint16_t options = *((uint16_t *)src) | (1 << 2);
+  migration_assign_uint16_t(&dst, options);
+  src += sizeof(options);
+  // Copy `current_profile` to `last_non_default_profile`
+  migration_memcpy(&dst, &src, 2);
+
+  return true;
+}
+
+bool v1_4_profile_config_func(uint8_t profile, uint8_t *dst,
                               const uint8_t *src) {
   // Copy the entire profile
   migration_memcpy(&dst, &src,
