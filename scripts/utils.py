@@ -117,3 +117,41 @@ def get_adc_resolution(kb_json: dict, driver_json: dict):
         if "adc_resolution" in kb_json["analog"]
         else driver_json["metadata"]["max_adc_resolution"]
     )
+
+
+FLASH_SECTOR_SIZES = {
+    # Sector layout for STM32F446RE: 4x16K, 1x64K, 3x128K
+    "stm32f446xx": [
+        16 * 1024,
+        16 * 1024,
+        16 * 1024,
+        16 * 1024,
+        64 * 1024,
+        128 * 1024,
+        128 * 1024,
+        128 * 1024,
+    ],
+    # AT32F405RC: 128 uniform 2K sectors (256K total)
+    "at32f405xx": [2048] * 128,
+}
+
+
+def get_flash_sector_sizes(driver: str) -> list[int]:
+    """
+    Get the flash sector sizes for the given driver.
+    """
+    if driver not in FLASH_SECTOR_SIZES:
+        raise ValueError(f"Unsupported driver: {driver}")
+    return FLASH_SECTOR_SIZES[driver]
+
+
+def round_up_to_flash_sectors(required_size: int, sector_sizes: list[int]) -> int:
+    """
+    Round up the required size to the minimum number of flash sectors (from the end).
+    """
+    total = 0
+    for size in reversed(sector_sizes):
+        total += size
+        if total >= required_size:
+            return total
+    return total
