@@ -135,8 +135,9 @@ build_flags.define("NUM_LAYERS", kb["num_layers"])
 build_flags.define("NUM_KEYS", kb["num_keys"])
 build_flags.define("NUM_ADVANCED_KEYS", kb["num_advanced_keys"])
 
-# Default Keymap
-build_flags.define("DEFAULT_KEYMAP", utils.to_c_array(kb_json["keymap"]))
+# Default Keymaps (per profile)
+default_keymaps = utils.resolve_default_keymaps(kb_json)
+build_flags.define("DEFAULT_KEYMAPS", utils.to_c_array(default_keymaps))
 
 # Actuation Configuration
 if "actuation" in kb_json:

@@ -210,6 +210,17 @@
         "items": { "type": "string" }
       }
     },
+    "keymaps": {
+      "type": "array",
+      "description": "Default keymaps for each profile. If not specified, the default keymap will be used for all profiles.",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
     "actuation": {
       "type": "object",
       "description": "Actuation configuration",
@@ -232,7 +243,6 @@
     "hardware",
     "analog",
     "calibration",
-    "layout",
-    "keymap"
+    "layout"
   ]
 }

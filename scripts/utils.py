@@ -77,3 +77,16 @@ def to_c_struct(value: dict):
 # Get the ADC resolution, or default to the maximum resolution supported by the MCU
 def get_adc_resolution(kb_json: dict, driver: Driver):
     return kb_json["analog"].get("adc_resolution", driver.metadata.adc.max_resolution)
+
+
+# Resolve per-profile default keymaps
+def resolve_default_keymaps(kb_json: dict) -> list[list[list[str]]]:
+    if "keymaps" in kb_json:
+        return kb_json["keymaps"]
+    else:
+        # Fallback to default keymap
+        if "keymap" not in kb_json:
+            raise ValueError(
+                "Default keymap must be specified when no per-profile default keymaps are specified"
+            )
+        return [kb_json["keymap"]] * kb_json["keyboard"]["num_profiles"]
