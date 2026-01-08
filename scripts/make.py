@@ -28,6 +28,25 @@ env.Append(SRC_FILTER=["-<hardware/>", f"+<hardware/{driver}/>"])
 # Build Flags
 build_flags = utils.CompilerFlags()
 
+# Wear leveling configuration
+wl_virtual_size = kb_json.get("wear_leveling", {}).get("virtual_size", 8192)
+wl_write_log_size = kb_json.get("wear_leveling", {}).get("write_log_size", 65536)
+wl_backing_store_size = wl_virtual_size + wl_write_log_size
+
+build_flags.flags.append(f"-DWL_VIRTUAL_SIZE={wl_virtual_size}")
+build_flags.flags.append(f"-DWL_WRITE_LOG_SIZE={wl_write_log_size}")
+
+# Reserve flash for wear leveling (round up to whole sectors from the end)
+sector_sizes = utils.get_flash_sector_sizes(driver)
+wl_reserved_flash_size = utils.round_up_to_flash_sectors(
+    wl_backing_store_size, sector_sizes
+)
+wl_flash_region_start = sum(sector_sizes) - wl_reserved_flash_size
+build_flags.flags.append(f"-Wl,--defsym,WL_FLASH_REGION_START={wl_flash_region_start}")
+build_flags.flags.append(
+    f"-Wl,--defsym,WL_RESERVED_FLASH_SIZE={wl_reserved_flash_size}"
+)
+
 # Include headers. We prioritize including driver and keyboard headers.
 build_flags.include(f"hardware/{driver}")
 build_flags.include(f"keyboards/{keyboard}")
