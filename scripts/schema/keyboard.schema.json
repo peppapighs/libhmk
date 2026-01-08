@@ -192,6 +192,17 @@
         "items": { "type": "string" }
       }
     },
+    "profile_keymaps": {
+      "type": "array",
+      "description": "Optional per-profile default keymaps applied during factory reset. If not provided, the `keymap` field is used for all profiles.",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
     "actuation": {
       "type": "object",
       "description": "Actuation configuration",

@@ -13,6 +13,8 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "eeconfig.h"
 
 #include "keycodes.h"
@@ -23,11 +25,30 @@ const eeconfig_t *eeconfig;
 // Default configuration values
 static eeconfig_options_t default_options = DEFAULT_OPTIONS;
 static eeconfig_calibration_t default_calibration = DEFAULT_CALIBRATION;
+static const uint8_t
+    default_profile_keymaps[NUM_PROFILES][NUM_LAYERS][NUM_KEYS] =
+        DEFAULT_PROFILE_KEYMAPS;
 static eeconfig_profile_t default_profile = {
-    .keymap = DEFAULT_KEYMAP,
     .gamepad_options = DEFAULT_GAMEPAD_OPTIONS,
     .tick_rate = DEFAULT_TICK_RATE,
 };
+
+static void eeconfig_load_default_keymap(uint8_t profile) {
+  if (profile < NUM_PROFILES)
+    memcpy(default_profile.keymap, default_profile_keymaps[profile],
+           sizeof(default_profile.keymap));
+  else
+    memcpy(default_profile.keymap, default_profile_keymaps[0],
+           sizeof(default_profile.keymap));
+}
+
+static bool eeconfig_write_default_profile(uint8_t profile) {
+  if (profile >= NUM_PROFILES)
+    return false;
+
+  eeconfig_load_default_keymap(profile);
+  return EECONFIG_WRITE(profiles[profile], &default_profile);
+}
 
 static bool eeconfig_is_latest_version(void) {
   return eeconfig->magic_start == EECONFIG_MAGIC_START &&
@@ -66,7 +87,7 @@ bool eeconfig_reset(void) {
   EECONFIG_WRITE_LOCAL(current_profile, 0);
   EECONFIG_WRITE_LOCAL(last_non_default_profile, M_MIN(1, NUM_PROFILES - 1));
   for (uint32_t i = 0; i < NUM_PROFILES; i++)
-    status &= EECONFIG_WRITE(profiles[i], &default_profile);
+    status &= eeconfig_write_default_profile(i);
   EECONFIG_WRITE_LOCAL(magic_end, EECONFIG_MAGIC_END);
 
   return status;
@@ -78,5 +99,5 @@ bool eeconfig_reset_profile(uint8_t profile) {
   if (profile >= NUM_PROFILES)
     return false;
 
-  return EECONFIG_WRITE(profiles[profile], &default_profile);
+  return eeconfig_write_default_profile(profile);
 }

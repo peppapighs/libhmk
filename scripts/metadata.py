@@ -48,6 +48,29 @@ metadata = {
     "defaultKeymap": kb_json["keymap"],
 }
 
+if "profile_keymaps" in kb_json:
+    base_keymap = [list(layer) for layer in kb_json["keymap"]]
+    num_profiles = kb_json["keyboard"]["num_profiles"]
+    num_layers = kb_json["keyboard"]["num_layers"]
+    raw_profile_keymaps = kb_json["profile_keymaps"]
+
+    if len(raw_profile_keymaps) > num_profiles:
+        raise ValueError("profile_keymaps must not have more entries than num_profiles")
+
+    resolved_profile_keymaps = []
+    for i in range(num_profiles):
+        if i < len(raw_profile_keymaps) and raw_profile_keymaps[i]:
+            profile_keymap = raw_profile_keymaps[i]
+            if len(profile_keymap) != num_layers:
+                raise ValueError(
+                    f"profile_keymaps[{i}] must have {num_layers} layers"
+                )
+            resolved_profile_keymaps.append([list(layer) for layer in profile_keymap])
+        else:
+            resolved_profile_keymaps.append([list(layer) for layer in base_keymap])
+
+    metadata["defaultProfileKeymaps"] = resolved_profile_keymaps
+
 uncompressed = json.dumps(metadata).encode("utf-8")
 compressed = gzip.compress(uncompressed)
 

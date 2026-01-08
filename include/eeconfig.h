@@ -133,8 +133,8 @@ extern const eeconfig_t *eeconfig;
   }
 #endif
 
-#if !defined(DEFAULT_KEYMAP)
-#error "DEFAULT_KEYMAP is not defined"
+#if !defined(DEFAULT_PROFILE_KEYMAPS)
+#error "DEFAULT_PROFILE_KEYMAPS is not defined"
 #endif
 
 #if !defined(DEFAULT_ACTUATION_POINT)

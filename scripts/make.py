@@ -97,8 +97,26 @@ build_flags.define("NUM_LAYERS", kb["num_layers"])
 build_flags.define("NUM_KEYS", kb["num_keys"])
 build_flags.define("NUM_ADVANCED_KEYS", kb["num_advanced_keys"])
 
-# Default Keymap
-build_flags.define("DEFAULT_KEYMAP", utils.to_c_array(kb_json["keymap"]))
+# Default Profile Keymaps
+base_keymap = [list(layer) for layer in kb_json["keymap"]]
+profile_keymaps = []
+raw_profile_keymaps = kb_json.get("profile_keymaps", [])
+
+if raw_profile_keymaps and len(raw_profile_keymaps) > kb["num_profiles"]:
+    raise ValueError("profile_keymaps must not have more entries than num_profiles")
+
+for i in range(kb["num_profiles"]):
+    if i < len(raw_profile_keymaps) and raw_profile_keymaps[i]:
+        profile_keymap = raw_profile_keymaps[i]
+        if len(profile_keymap) != kb["num_layers"]:
+            raise ValueError(
+                f"profile_keymaps[{i}] must have {kb['num_layers']} layers"
+            )
+        profile_keymaps.append([list(layer) for layer in profile_keymap])
+    else:
+        profile_keymaps.append([list(layer) for layer in base_keymap])
+
+build_flags.define("DEFAULT_PROFILE_KEYMAPS", utils.to_c_array(profile_keymaps))
 
 # Actuation Configuration
 if "actuation" in kb_json:
