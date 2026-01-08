@@ -45,7 +45,7 @@ metadata = {
     "numKeys": kb_json["keyboard"]["num_keys"],
     "numAdvancedKeys": kb_json["keyboard"]["num_advanced_keys"],
     "layout": kb_json["layout"],
-    "defaultKeymap": kb_json["keymap"],
+    "defaultKeymaps": utils.resolve_default_keymaps(kb_json),
 }
 
 uncompressed = json.dumps(metadata).encode("utf-8")
