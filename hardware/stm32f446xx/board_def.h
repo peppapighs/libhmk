@@ -15,35 +15,9 @@
 
 #pragma once
 
-#include "common.h"
-
-//--------------------------------------------------------------------+
-// Bootloader Configuration
-//--------------------------------------------------------------------+
-
-#define BOOTLOADER_ADDR 0x1FFF0000
-#define BOOTLOADER_MAGIC 0xDEADBEEF
-
-//--------------------------------------------------------------------+
-// Flash Configuration
-//--------------------------------------------------------------------+
-
-// Flash size in bytes
-#define FLASH_SIZE (512 * 1024)
-// Number of flash sectors/pages
-#define FLASH_NUM_SECTORS 8
-// Flash value when erased
-#define FLASH_EMPTY_VAL 0xFFFFFFFF
-
 //--------------------------------------------------------------------+
 // ADC Configuration
 //--------------------------------------------------------------------+
-
-// Number of ADC channels
-#define ADC_NUM_CHANNELS 16
-
-// Maximum ADC value
-#define ADC_MAX_VALUE ((1 << ADC_RESOLUTION) - 1)
 
 #if !defined(ADC_NUM_SAMPLE_CYCLES)
 // Number of sample cycles for each ADC conversion

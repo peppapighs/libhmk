@@ -13,145 +13,67 @@
 
 import json
 import os
+from drivers import *
 
 
 class CompilerFlags:
-    """
-    A class to manage compiler flags for building the firmware.
-    """
-
     def __init__(self):
         self.flags = []
 
+    # Get the list of compiler flags
     def get_flags(self):
-        """
-        Get the list of compiler flags.
-        """
         return self.flags
 
-    def define(self, name: str, value: str = None):
-        """
-        Add a preprocessor definition to the compiler flags.
-        """
-        if value is None:
-            self.flags.append(f"-D{name}")
-        else:
-            self.flags.append(f"-D{name}='{value}'")
+    # Add a preprocessor definition to the compiler flags
+    def define(self, name: str, value: int | str | None = None):
+        match value:
+            case None:
+                self.flags.append(f"-D{name}")
+            case int() | str():
+                self.flags.append(f"-D{name}='{value}'")
 
+    # Add a linker definition to the compiler flags
+    def linker_defsym(self, name: str, value: int | str | None = None):
+        match value:
+            case None:
+                self.flags.append(f"-Wl,--defsym,{name}")
+            case int() | str():
+                self.flags.append(f"-Wl,--defsym,{name}={value}")
+
+    # Add an include path to the compiler flags
     def include(self, path: str):
-        """
-        Add an include path to the compiler flags.
-        """
         self.flags.append(f"-I{path}")
 
 
+# Load the keyboard JSON configuration file
 def get_kb_json(keyboard: str):
-    """
-    Load the keyboard JSON configuration file.
-    """
     with open(os.path.join("keyboards", keyboard, "keyboard.json"), "r") as f:
         return json.load(f)
 
 
-def get_driver_json(keyboard: str):
-    """
-    Load the driver JSON configuration file.
-    """
+# Load the driver based on the keyboard configuration
+def get_driver(keyboard: str):
     kb_json = get_kb_json(keyboard)
-    with open(
-        os.path.join("hardware", kb_json["hardware"]["driver"], "info.json"), "r"
-    ) as f:
-        return json.load(f)
+    driver = kb_json["hardware"]["driver"]
+    match driver:
+        case "stm32f446xx":
+            return STM32F446XX
+        case "at32f405xx":
+            return AT32F405XX
+        case _:
+            raise ValueError(f"Unsupported driver: {driver}")
 
 
-def to_c_array(arr: list):
-    """
-    Convert a Python list to a C array initializer.
-    """
+# Convert a Python list to a C array initializer
+def to_c_array(arr: list | bytes):
     return f"{{{', '.join(to_c_array(x) if isinstance(x, list) else str(x) for x in arr)}}}"
 
 
+# Convert a Python dictionary to a C struct initializer
 def to_c_struct(value: dict):
-    """
-    Convert a Python dictionary to a C struct initializer.
-    """
     return f"{{{', '.join(f'.{k} = {v}' for k, v in value.items())}}}"
 
 
-def to_gpio_array(pins: list[str], driver: str):
-    """
-    Convert a list of GPIO pin names to a tuple of (port names, pin numbers)
-    """
-    if driver == "stm32f446xx":
-        ports = [f"GPIO{pin[0]}" for pin in pins]
-        pin_nums = [f"GPIO_PIN_{pin[1:]}" for pin in pins]
-    elif driver == "at32f405xx":
-        ports = [f"GPIO{pin[0]}" for pin in pins]
-        pin_nums = [f"GPIO_PINS_{pin[1:]}" for pin in pins]
-    else:
-        raise ValueError(f"Unsupported driver: {driver}")
-    return (ports, pin_nums)
-
-
-def to_adc_input_array(channels_or_pins: list[str | int], driver_json: dict):
-    """
-    Convert a list of ADC input channels or GPIO pin names to a C array of ADC input channels
-    """
-    adc_input_pins = driver_json["metadata"]["adc_input_pins"]
-    channels = []
-    for x in channels_or_pins:
-        if isinstance(x, str):
-            channels.append(adc_input_pins.index(x))
-        else:
-            assert x < len(adc_input_pins)
-            channels.append(x)
-    return to_c_array(channels)
-
-
-def get_adc_resolution(kb_json: dict, driver_json: dict):
-    """
-    Get the ADC resolution, or default to the maximum resolution supported by the MCU
-    """
-    return (
-        kb_json["analog"]["adc_resolution"]
-        if "adc_resolution" in kb_json["analog"]
-        else driver_json["metadata"]["max_adc_resolution"]
-    )
-
-
-FLASH_SECTOR_SIZES = {
-    # Sector layout for STM32F446RE: 4x16K, 1x64K, 3x128K
-    "stm32f446xx": [
-        16 * 1024,
-        16 * 1024,
-        16 * 1024,
-        16 * 1024,
-        64 * 1024,
-        128 * 1024,
-        128 * 1024,
-        128 * 1024,
-    ],
-    # AT32F405RC: 128 uniform 2K sectors (256K total)
-    "at32f405xx": [2048] * 128,
-}
-
-
-def get_flash_sector_sizes(driver: str) -> list[int]:
-    """
-    Get the flash sector sizes for the given driver.
-    """
-    if driver not in FLASH_SECTOR_SIZES:
-        raise ValueError(f"Unsupported driver: {driver}")
-    return FLASH_SECTOR_SIZES[driver]
-
-
-def round_up_to_flash_sectors(required_size: int, sector_sizes: list[int]) -> int:
-    """
-    Round up the required size to the minimum number of flash sectors (from the end).
-    """
-    total = 0
-    for size in reversed(sector_sizes):
-        total += size
-        if total >= required_size:
-            return total
-    return total
+# Get the ADC resolution, or default to the maximum resolution supported by the MCU
+def get_adc_resolution(kb_json: dict, driver: Driver):
+    return kb_json["analog"].get("adc_resolution", driver.metadata.adc.max_resolution)

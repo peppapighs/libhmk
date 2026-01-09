@@ -32,14 +32,14 @@ Import("env")
 keyboard = env["PIOENV"]
 
 kb_json = utils.get_kb_json(keyboard)
-driver_json = utils.get_driver_json(keyboard)
+driver = utils.get_driver(keyboard)
 
 metadata = {
     "name": kb_json["name"],
     "vendorId": kb_json["usb"]["vid"],
     "productId": kb_json["usb"]["pid"],
     "usbHighSpeed": kb_json["usb"]["port"] == "hs",
-    "adcResolution": utils.get_adc_resolution(kb_json, driver_json),
+    "adcResolution": utils.get_adc_resolution(kb_json, driver),
     "numProfiles": kb_json["keyboard"]["num_profiles"],
     "numLayers": kb_json["keyboard"]["num_layers"],
     "numKeys": kb_json["keyboard"]["num_keys"],

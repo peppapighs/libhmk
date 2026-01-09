@@ -150,6 +150,24 @@
       },
       "required": ["initial_rest_value", "initial_bottom_out_threshold"]
     },
+    "wear_leveling": {
+      "type": "object",
+      "description": "Wear leveling configuration",
+      "properties": {
+        "virtual_size": {
+          "type": "integer",
+          "description": "Size of the virtual persistent storage in bytes. There must be enough RAM of this size to hold the entire virtual storage.",
+          "minimum": 1,
+          "default": 8192
+        },
+        "write_log_size": {
+          "type": "integer",
+          "description": "Size of the write log in bytes",
+          "minimum": 1,
+          "default": 65536
+        }
+      }
+    },
     "layout": {
       "type": "object",
       "properties": {

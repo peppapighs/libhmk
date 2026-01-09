@@ -13,18 +13,15 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "hardware/hardware.h"
 
-//--------------------------------------------------------------------+
-// ADC Configuration
-//--------------------------------------------------------------------+
-
-#if !defined(ADC_NUM_SAMPLE_CYCLES)
-// Number of sample cycles for each ADC conversion
-#define ADC_NUM_SAMPLE_CYCLES ADC_SAMPLETIME_7_5
+uint32_t flash_sector_size(uint32_t sector) {
+#if defined(FLASH_SECTOR_SIZE)
+  return sector < FLASH_NUM_SECTORS ? FLASH_SECTOR_SIZE : 0;
+#elif defined(FLASH_SECTOR_SIZES)
+  static const uint32_t flash_sector_sizes[] = FLASH_SECTOR_SIZES;
+  return sector < FLASH_NUM_SECTORS ? flash_sector_sizes[sector] : 0;
+#else
+#error "FLASH_UNIFORM_SECTOR_SIZE or FLASH_SECTOR_SIZES must be defined"
 #endif
-
-// ADC resolution in bits, set by `scripts/make.py`
-#if ADC_RESOLUTION != 12
-#error "Unsupported ADC resolution"
-#endif
+}

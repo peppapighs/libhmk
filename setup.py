@@ -1,3 +1,7 @@
+import sys
+
+sys.path.append("scripts")
+
 import argparse
 import configparser
 import os
@@ -18,7 +22,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     keyboard: str = args.keyboard
-    driver_json = utils.get_driver_json(keyboard)
+    driver = utils.get_driver(keyboard)
 
     build_flags = ["${env.build_flags}"]
     build_src_flags = [
@@ -42,15 +46,15 @@ if __name__ == "__main__":
 
     pio_config = configparser.ConfigParser()
     pio_config[f"env:{keyboard}"] = {
-        "board": driver_json["platformio"]["board"],
-        "board_build.ldscript": f"linker/{driver_json['platformio']['ldscript']}",
+        "board": driver.platformio.board,
+        "board_build.ldscript": f"linker/{driver.platformio.ldscript}",
         "build_flags": "\n".join(build_flags),
         "build_src_filter": "${env.build_src_filter}",
         "build_src_flags": "\n".join(build_src_flags),
         "extra_scripts": "\n".join(extra_scripts),
-        "framework": driver_json["platformio"]["framework"],
+        "framework": driver.platformio.framework,
         "lib_deps": "\n".join(lib_deps),
-        "platform": driver_json["platformio"]["platform"],
+        "platform": driver.platformio.platform,
         "upload_protocol": "dfu",
     }
 

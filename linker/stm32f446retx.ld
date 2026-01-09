@@ -43,19 +43,13 @@ _board_bootloader_flag = _estack;
 _Min_Heap_Size = 0x200; /* required amount of heap */
 _Min_Stack_Size = 0x400; /* required amount of stack */
 
-/* Wear leveling flash reservation (provided via --defsym) */
-ASSERT(DEFINED(WL_FLASH_REGION_START),
-       "WL_FLASH_REGION_START must be defined (set in scripts/make.py)");
-ASSERT(DEFINED(WL_RESERVED_FLASH_SIZE),
-       "WL_RESERVED_FLASH_SIZE must be defined (set in scripts/make.py)");
-
 /* Memories definition */
+BASE_ADDR = 0x8000000;
 MEMORY
 {
-  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 128K - 4 /* Reserve 4 bytes for bootloader */
-  /* WL_* values are provided via --defsym by scripts/make.py */
-  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = WL_FLASH_REGION_START
-  FLASH_WL (r)     : ORIGIN = 0x8000000 + WL_FLASH_REGION_START,   LENGTH = WL_RESERVED_FLASH_SIZE
+  FLASH    (rx)   : ORIGIN = BASE_ADDR, LENGTH = WL_BASE_ADDRESS
+  FLASH_WL (r)    : ORIGIN = BASE_ADDR + WL_BASE_ADDRESS, LENGTH = FLASH_SIZE - WL_BASE_ADDRESS
+  RAM    (xrw)    : ORIGIN = 0x20000000, LENGTH = 128K - 4 /* Reserve 4 bytes for bootloader */
 }
 
 /* Sections */

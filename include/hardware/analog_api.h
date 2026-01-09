@@ -21,6 +21,9 @@
 // Analog Configuration
 //--------------------------------------------------------------------+
 
+// Maximum ADC value
+#define ADC_MAX_VALUE ((1 << ADC_RESOLUTION) - 1)
+
 #if !defined(ADC_NUM_MUX_INPUTS)
 // Number of ADC inputs that are connected to the multiplexer
 #define ADC_NUM_MUX_INPUTS 0

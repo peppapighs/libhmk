@@ -17,13 +17,7 @@
 
 #include "at32f402_405.h"
 
-#define FLASH_SECTOR_SIZE 2048
-
 void flash_init(void) {}
-
-uint32_t flash_sector_size(uint32_t sector) {
-  return sector < FLASH_NUM_SECTORS ? FLASH_SECTOR_SIZE : 0;
-}
 
 bool flash_erase(uint32_t sector) {
   if (sector >= FLASH_NUM_SECTORS)

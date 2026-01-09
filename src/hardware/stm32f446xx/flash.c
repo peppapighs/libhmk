@@ -17,19 +17,7 @@
 
 #include "stm32f4xx_hal.h"
 
-static const uint32_t flash_sector_sizes[] = {
-    16 * 1024, 16 * 1024,  16 * 1024,  16 * 1024,
-    64 * 1024, 128 * 1024, 128 * 1024, 128 * 1024,
-};
-
-_Static_assert(M_ARRAY_SIZE(flash_sector_sizes) == FLASH_NUM_SECTORS,
-               "Invalid number of flash sectors");
-
 void flash_init(void) {}
-
-uint32_t flash_sector_size(uint32_t sector) {
-  return sector < FLASH_NUM_SECTORS ? flash_sector_sizes[sector] : 0;
-}
 
 bool flash_erase(uint32_t sector) {
   if (sector >= FLASH_NUM_SECTORS)

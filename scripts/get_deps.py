@@ -13,7 +13,8 @@
 
 import json
 import os
-import utils
+import utils as utils
+from drivers import Driver
 
 Import("env")
 
@@ -24,17 +25,13 @@ for package in PIP_PACKAGES:
 
 keyboard = env["PIOENV"]
 
-# Load JSON files
-kb_json = utils.get_kb_json(keyboard)
-driver_json = utils.get_driver_json(keyboard)
+# Load driver (only for validation)
+_: Driver = utils.get_driver(keyboard)
 
-# Validate JSON
+# Load JSON files and validate
 import jsonschema
 
+kb_json = utils.get_kb_json(keyboard)
 with open(os.path.join("scripts", "schema", "keyboard.schema.json")) as f:
     kb_schema = json.load(f)
-with open(os.path.join("scripts", "schema", "driver.schema.json")) as f:
-    driver_schema = json.load(f)
-
 jsonschema.validate(kb_json, schema=kb_schema)
-jsonschema.validate(driver_json, schema=driver_schema)

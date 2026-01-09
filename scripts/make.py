@@ -12,48 +12,48 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
 import utils
+from drivers import *
 
 Import("env")
 
 keyboard = env["PIOENV"]
 
-# Load JSON files. We assume that they have been validated in `get_deps.py`.
+# Load JSON files and driver. We assume that they have been validated in `get_deps.py`.
 kb_json = utils.get_kb_json(keyboard)
-driver_json = utils.get_driver_json(keyboard)
-driver = kb_json["hardware"]["driver"]
+driver = utils.get_driver(keyboard)
+driver_name = kb_json["hardware"]["driver"]
 
 # Add source filter for driver source files
-env.Append(SRC_FILTER=["-<hardware/>", f"+<hardware/{driver}/>"])
+env.Append(SRC_FILTER=["-<hardware/>", f"+<hardware/{driver_name}/>"])
 
 # Build Flags
 build_flags = utils.CompilerFlags()
 
-# Wear leveling configuration
-wl_virtual_size = kb_json.get("wear_leveling", {}).get("virtual_size", 8192)
-wl_write_log_size = kb_json.get("wear_leveling", {}).get("write_log_size", 65536)
-wl_backing_store_size = wl_virtual_size + wl_write_log_size
-
-build_flags.flags.append(f"-DWL_VIRTUAL_SIZE={wl_virtual_size}")
-build_flags.flags.append(f"-DWL_WRITE_LOG_SIZE={wl_write_log_size}")
-
-# Reserve flash for wear leveling (round up to whole sectors from the end)
-sector_sizes = utils.get_flash_sector_sizes(driver)
-wl_reserved_flash_size = utils.round_up_to_flash_sectors(
-    wl_backing_store_size, sector_sizes
-)
-wl_flash_region_start = sum(sector_sizes) - wl_reserved_flash_size
-build_flags.flags.append(f"-Wl,--defsym,WL_FLASH_REGION_START={wl_flash_region_start}")
-build_flags.flags.append(
-    f"-Wl,--defsym,WL_RESERVED_FLASH_SIZE={wl_reserved_flash_size}"
-)
-
 # Include headers. We prioritize including driver and keyboard headers.
-build_flags.include(f"hardware/{driver}")
+build_flags.include(f"hardware/{driver_name}")
 build_flags.include(f"keyboards/{keyboard}")
 build_flags.include("include")
 
+# Bootloader Configuration
+build_flags.define("BOOTLOADER_ADDR", driver.metadata.bootloader.address)
+build_flags.define("BOOTLOADER_MAGIC", driver.metadata.bootloader.magic)
+
+# Flash Configuration
+flash_size = driver.metadata.flash.get_flash_size()
+flash_num_sectors = driver.metadata.flash.get_num_sectors()
+build_flags.define("FLASH_SIZE", flash_size)
+build_flags.linker_defsym("FLASH_SIZE", flash_size)
+build_flags.define("FLASH_NUM_SECTORS", flash_num_sectors)
+build_flags.define("FLASH_EMPTY_VAL", driver.metadata.flash.empty_value)
+
+match driver.metadata.flash.sector_sizes:
+    case NonUniformSectors(sizes):
+        build_flags.define("FLASH_SECTOR_SIZES", utils.to_c_array(sizes))
+    case UniformSectors(size, _):
+        build_flags.define("FLASH_SECTOR_SIZE", size)
+
 # TinyUSB Configuration
-build_flags.define("CFG_TUSB_MCU", f"OPT_MCU_{driver_json['tinyusb']['mcu'].upper()}")
+build_flags.define("CFG_TUSB_MCU", f"OPT_MCU_{driver.tinyusb.mcu.upper()}")
 
 # Clock Configuration
 build_flags.define("BOARD_HSE_VALUE", kb_json["hardware"]["hse_value"])
@@ -70,7 +70,8 @@ build_flags.define("USB_VENDOR_ID", kb_json["usb"]["vid"])
 build_flags.define("USB_PRODUCT_ID", kb_json["usb"]["pid"])
 
 # Analog Configuration
-build_flags.define("ADC_RESOLUTION", utils.get_adc_resolution(kb_json, driver_json))
+build_flags.define("ADC_NUM_CHANNELS", len(driver.metadata.adc.input_pins))
+build_flags.define("ADC_RESOLUTION", utils.get_adc_resolution(kb_json, driver))
 
 if kb_json["analog"].get("invert_adc", False):
     build_flags.define("MATRIX_INVERT_ADC_VALUES")
@@ -84,7 +85,8 @@ if "raw" in kb_json["analog"]:
 
     build_flags.define("ADC_NUM_RAW_INPUTS", len(raw["input"]))
     build_flags.define(
-        "ADC_RAW_INPUT_CHANNELS", utils.to_adc_input_array(raw["input"], driver_json)
+        "ADC_RAW_INPUT_CHANNELS",
+        utils.to_c_array(driver.metadata.adc.to_adc_inputs(raw["input"])),
     )
     build_flags.define("ADC_RAW_INPUT_VECTOR", utils.to_c_array(raw["vector"]))
 
@@ -94,11 +96,12 @@ if "mux" in kb_json["analog"]:
 
     build_flags.define("ADC_NUM_MUX_INPUTS", len(mux["input"]))
     build_flags.define(
-        "ADC_MUX_INPUT_CHANNELS", utils.to_adc_input_array(mux["input"], driver_json)
+        "ADC_MUX_INPUT_CHANNELS",
+        utils.to_c_array(driver.metadata.adc.to_adc_inputs(mux["input"])),
     )
     build_flags.define("ADC_NUM_MUX_SELECT_PINS", len(mux["select"]))
 
-    ports, pin_nums = utils.to_gpio_array(mux["select"], driver)
+    ports, pin_nums = driver.metadata.adc.to_gpio_array(mux["select"])
     build_flags.define("ADC_MUX_SELECT_PORTS", utils.to_c_array(ports))
     build_flags.define("ADC_MUX_SELECT_PINS", utils.to_c_array(pin_nums))
 
@@ -108,6 +111,22 @@ if "mux" in kb_json["analog"]:
 
 # Calibration Configuration
 build_flags.define("DEFAULT_CALIBRATION", utils.to_c_struct(kb_json["calibration"]))
+
+# Wear leveling configuration
+wear_leveling = kb_json.get("wear_leveling", {})
+wl_virtual_size = wear_leveling.get("virtual_size", 8192)
+wl_write_log_size = wear_leveling.get("write_log_size", 65536)
+wl_backing_store_size = wl_virtual_size + wl_write_log_size
+
+build_flags.define("WL_VIRTUAL_SIZE", wl_virtual_size)
+build_flags.define("WL_WRITE_LOG_SIZE", wl_write_log_size)
+
+# Reserve flash for wear leveling (round up to whole sectors from the end)
+wl_base_address = flash_size - driver.metadata.flash.round_up_to_flash_sectors(
+    wl_backing_store_size
+)
+build_flags.define("WL_BASE_ADDRESS", wl_base_address)
+build_flags.linker_defsym("WL_BASE_ADDRESS", wl_base_address)
 
 # Keyboard Configuration
 kb = kb_json["keyboard"]

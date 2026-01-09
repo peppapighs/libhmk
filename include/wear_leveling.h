@@ -21,21 +21,10 @@
 // Wear Leveling Configuration
 //--------------------------------------------------------------------+
 
-#if !defined(WL_VIRTUAL_SIZE)
-// Size of the virtual persistent storage in bytes. There must be enough RAM of
-// this size to hold the entire virtual storage.
-#define WL_VIRTUAL_SIZE 8192
-#endif
-
 _Static_assert(WL_VIRTUAL_SIZE <= 8192,
                "WL_VIRTUAL_SIZE must be at most 8192.");
 _Static_assert(WL_VIRTUAL_SIZE % 4 == 0,
                "WL_VIRTUAL_SIZE must be word-aligned.");
-
-#if !defined(WL_WRITE_LOG_SIZE)
-// Size of the write log in bytes
-#define WL_WRITE_LOG_SIZE 65536
-#endif
 
 _Static_assert(WL_WRITE_LOG_SIZE % 4 == 0,
                "WL_WRITE_LOG_SIZE must be word-aligned.");
