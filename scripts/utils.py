@@ -74,6 +74,11 @@ def to_c_struct(value: dict):
     return f"{{{', '.join(f'.{k} = {v}' for k, v in value.items())}}}"
 
 
+# Convert a Pyhon list to a C array slice definition
+def to_slice_def(name: str, arr: list | bytes):
+    return f"#define {name.upper()} {', '.join(str(x) for x in arr)}"
+
+
 # Get the ADC resolution, or default to the maximum resolution supported by the MCU
 def get_adc_resolution(kb_json: dict, driver: Driver):
     return kb_json["analog"].get("adc_resolution", driver.metadata.adc.max_resolution)

@@ -19,28 +19,10 @@
 #include "tusb_config.h"
 
 //--------------------------------------------------------------------+
-// USB Configuration
-//--------------------------------------------------------------------+
-
-#if !defined(USB_MANUFACTURER_NAME)
-#define USB_MANUFACTURER_NAME "Unknown"
-#endif
-
-#if !defined(USB_PRODUCT_NAME)
-#define USB_PRODUCT_NAME "Keyboard"
-#endif
-
-#if !defined(USB_VENDOR_ID)
-#define USB_VENDOR_ID 0xCAFE
-#endif
-
-#if !defined(USB_PRODUCT_ID)
-#define USB_PRODUCT_ID 0x1234
-#endif
-
-//--------------------------------------------------------------------+
 // USB Descriptors
 //--------------------------------------------------------------------+
+
+#define USB_BCD_VERSION 0x0210
 
 enum {
   STR_ID_LANGID = 0,
@@ -84,17 +66,13 @@ enum {
 };
 
 //---------------------------------------------------------------------+
-// Microsoft OS 1.0 descriptor
+// Microsoft OS 2.0 descriptor
 //---------------------------------------------------------------------+
 
-// Microsoft OS 1.0 descriptor vendor code
-#define MS_OS_10_VENDOR_CODE 0xAB
-// Microsoft OS 1.0 descriptor header length
-#define MS_OS_10_COMPAT_ID_DESC_LEN 16
-// Microsoft OS 1.0 compatibility ID function length
-#define MS_OS_10_COMPAT_ID_FUNCTION_DESC_LEN 24
-// Microsoft OS 1.0 properties length
-#define MS_OS_10_COMPAT_ID_PROPERTIES_DESC_LEN 142
+// Microsoft OS 2.0 descriptor vendor code
+#define MS_OS_20_VENDOR_CODE 0x01
+// Microsoft OS 2.0 descriptor length
+#define MS_OS_20_DESC_LEN 178
 
 //--------------------------------------------------------------------+
 // NKRO HID Report

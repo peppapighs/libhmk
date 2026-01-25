@@ -17,6 +17,7 @@
 
 #include "eeconfig.h"
 #include "hardware/hardware.h"
+#include "metadata.h"
 #include "tusb.h"
 #include "xinput.h"
 
@@ -24,7 +25,7 @@
 static const tusb_desc_device_t desc_device = {
     .bLength = sizeof(tusb_desc_device_t),
     .bDescriptorType = TUSB_DESC_DEVICE,
-    .bcdUSB = 0x0200,
+    .bcdUSB = USB_BCD_VERSION,
 
     .bDeviceClass = 0x00,
     .bDeviceSubClass = 0x00,
@@ -115,7 +116,7 @@ static uint8_t desc_configuration[CONFIG_TOTAL_LEN];
 static const tusb_desc_device_qualifier_t desc_device_qualifier = {
     .bLength = sizeof(tusb_desc_device_qualifier_t),
     .bDescriptorType = TUSB_DESC_DEVICE_QUALIFIER,
-    .bcdUSB = 0x0200,
+    .bcdUSB = USB_BCD_VERSION,
 
     .bDeviceClass = 0x00,
     .bDeviceSubClass = 0x00,
@@ -146,107 +147,83 @@ static const char *desc_strings[] = {
 _Static_assert(M_ARRAY_SIZE(desc_strings) == STR_ID_COUNT,
                "Invalid string descriptor size");
 
-// Microsoft OS 1.0 descriptor
-static const uint8_t desc_ms_os_10[] = {
-    // Microsoft OS 1.0 descriptor length
-    0x12,
-    // Descriptor type
-    0x03,
-    // Signature field
-    'M', 0x00, 'S', 0x00, 'F', 0x00, 'T', 0x00, '1', 0x00, '0', 0x00, '0', 0x00,
-    // Vendor code
-    MS_OS_10_VENDOR_CODE,
-    // Reserved
-    0x00
+#define BOS_TOTAL_LEN (TUD_BOS_DESC_LEN + TUD_BOS_MICROSOFT_OS_DESC_LEN)
 
+// BOS descriptor
+static const uint8_t desc_bos[] = {
+    // Total length of the BOS descriptor
+    TUD_BOS_DESCRIPTOR(BOS_TOTAL_LEN, 1),
+    // Microsoft OS 2.0 descriptor
+    TUD_BOS_MS_OS_20_DESCRIPTOR(MS_OS_20_DESC_LEN, MS_OS_20_VENDOR_CODE),
 };
 
-#define MS_OS_10_COMPAT_ID_TOTAL_LEN                                           \
-  (MS_OS_10_COMPAT_ID_DESC_LEN + MS_OS_10_COMPAT_ID_FUNCTION_DESC_LEN)
+// Microsoft OS 2.0 descriptor
+static const uint8_t desc_ms_os_20[] = {
+    // Set header length
+    U16_TO_U8S_LE(0x000A),
+    // Set header descriptor type
+    U16_TO_U8S_LE(MS_OS_20_SET_HEADER_DESCRIPTOR),
+    // Minimum supported Windows version (Windows 8.1)
+    U32_TO_U8S_LE(0x06030000),
+    // Total length of MS OS 2.0 descriptor
+    U16_TO_U8S_LE(MS_OS_20_DESC_LEN),
 
-// Microsoft OS 1.0 compatibility ID descriptor
-static const uint8_t desc_ms_os_10_compat_id[] = {
-    // Total length of the compatibility ID descriptor
-    U32_TO_U8S_LE(MS_OS_10_COMPAT_ID_TOTAL_LEN),
-    // Descriptor version
-    U16_TO_U8S_LE(0x0100),
-    // Descriptor index
-    U16_TO_U8S_LE(0x0004),
-    // Number of sections. Only one section for compatibility ID is needed.
-    U16_TO_U8S_LE(0X0001),
+    // Subset header length
+    U16_TO_U8S_LE(0x0008),
+    // Subset header descriptor type
+    U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_CONFIGURATION),
+    // Configuration index
+    0x00,
     // Reserved
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00,
+    // Total length of subset including header
+    U16_TO_U8S_LE(MS_OS_20_DESC_LEN - 0x000A),
 
-    // First interface of the section to apply compatibility ID. Only XInput
-    // interface requires compatibility ID.
+    // Function subset header length
+    U16_TO_U8S_LE(0x0008),
+    // Function subset header descriptor type
+    U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNCTION),
+    // First interface
     USB_ITF_XINPUT,
     // Reserved
-    0x01,
-    // Compatibility ID: XUSB
-    'X', 'U', 'S', 'B', '1', '0', 0x00, 0x00,
-    // Sub-compatibility ID
+    0x00,
+    // Total length of function subset including header
+    U16_TO_U8S_LE(0x00A0),
+
+    // Feature descriptor length
+    U16_TO_U8S_LE(0x0014),
+    // Feature descriptor type
+    U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPATBLE_ID),
+    // Compatible ID
+    'X', 'U', 'S', 'B', '2', '0', 0x00, 0x00,
+    // Sub-compatible ID
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    // Reserved
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-};
-
-_Static_assert(M_ARRAY_SIZE(desc_ms_os_10_compat_id) ==
-                   MS_OS_10_COMPAT_ID_TOTAL_LEN,
-               "Invalid Microsoft OS 1.0 compatibility ID descriptor size");
-
-static const uint8_t desc_ms_os_10_properties[] = {
-    // Total length of the properties descriptor
-    U32_TO_U8S_LE(MS_OS_10_COMPAT_ID_PROPERTIES_DESC_LEN),
-    // Descriptor version
-    U16_TO_U8S_LE(0x0100),
-    // Descriptor index
-    U16_TO_U8S_LE(0x0005),
-    // Number of sections. Only one section for properties is needed.
-    U16_TO_U8S_LE(0x0001),
-
-    // Section length
-    U32_TO_U8S_LE(MS_OS_10_COMPAT_ID_PROPERTIES_DESC_LEN - 10),
-    // Null-terminated Unicode string property data type
-    U32_TO_U8S_LE(0x00000001),
+    // Registry property descriptor length
+    U16_TO_U8S_LE(0x0084),
+    // Registry property descriptor type
+    U16_TO_U8S_LE(MS_OS_20_FEATURE_REG_PROPERTY),
+    // Property data type (REG_MULTI_SZ)
+    U16_TO_U8S_LE(0x0007),
     // Property name length
-    U16_TO_U8S_LE(0x0028),
-    // Property name: "DeviceInterfaceGUID\0"
+    U16_TO_U8S_LE(0x002A),
+    // Property name
     U16_TO_U8S_LE('D'), U16_TO_U8S_LE('e'), U16_TO_U8S_LE('v'),
     U16_TO_U8S_LE('i'), U16_TO_U8S_LE('c'), U16_TO_U8S_LE('e'),
     U16_TO_U8S_LE('I'), U16_TO_U8S_LE('n'), U16_TO_U8S_LE('t'),
     U16_TO_U8S_LE('e'), U16_TO_U8S_LE('r'), U16_TO_U8S_LE('f'),
     U16_TO_U8S_LE('a'), U16_TO_U8S_LE('c'), U16_TO_U8S_LE('e'),
     U16_TO_U8S_LE('G'), U16_TO_U8S_LE('U'), U16_TO_U8S_LE('I'),
-    U16_TO_U8S_LE('D'), U16_TO_U8S_LE('\0'),
+    U16_TO_U8S_LE('D'), U16_TO_U8S_LE('s'), U16_TO_U8S_LE('\0'),
     // Property data length
-    U32_TO_U8S_LE(0x0000004E),
-    // Property data: "{AA1F875D-FD9E-4DB8-A8B4-0449<Vendor ID><Product ID>}\0"
-    U16_TO_U8S_LE('{'), U16_TO_U8S_LE('A'), U16_TO_U8S_LE('A'),
-    U16_TO_U8S_LE('1'), U16_TO_U8S_LE('F'), U16_TO_U8S_LE('8'),
-    U16_TO_U8S_LE('7'), U16_TO_U8S_LE('5'), U16_TO_U8S_LE('D'),
-    U16_TO_U8S_LE('-'), U16_TO_U8S_LE('F'), U16_TO_U8S_LE('D'),
-    U16_TO_U8S_LE('9'), U16_TO_U8S_LE('E'), U16_TO_U8S_LE('-'),
-    U16_TO_U8S_LE('4'), U16_TO_U8S_LE('D'), U16_TO_U8S_LE('B'),
-    U16_TO_U8S_LE('8'), U16_TO_U8S_LE('-'), U16_TO_U8S_LE('A'),
-    U16_TO_U8S_LE('8'), U16_TO_U8S_LE('B'), U16_TO_U8S_LE('4'),
-    U16_TO_U8S_LE('-'), U16_TO_U8S_LE('0'), U16_TO_U8S_LE('4'),
-    U16_TO_U8S_LE('4'), U16_TO_U8S_LE('9'),
-    U16_TO_U8S_LE(M_HEX((USB_VENDOR_ID >> 12) & 0xF)),
-    U16_TO_U8S_LE(M_HEX((USB_VENDOR_ID >> 8) & 0xF)),
-    U16_TO_U8S_LE(M_HEX((USB_VENDOR_ID >> 4) & 0xF)),
-    U16_TO_U8S_LE(M_HEX(USB_VENDOR_ID & 0xF)),
-    U16_TO_U8S_LE(M_HEX((USB_PRODUCT_ID >> 12) & 0xF)),
-    U16_TO_U8S_LE(M_HEX((USB_PRODUCT_ID >> 8) & 0xF)),
-    U16_TO_U8S_LE(M_HEX((USB_PRODUCT_ID >> 4) & 0xF)),
-    U16_TO_U8S_LE(M_HEX(USB_PRODUCT_ID & 0xF)), U16_TO_U8S_LE('}'),
-    U16_TO_U8S_LE('\0')
+    U16_TO_U8S_LE(0x0050),
+    // Property data (random GUID)
+    MS_OS_20_GUID
 
 };
 
-_Static_assert(M_ARRAY_SIZE(desc_ms_os_10_properties) ==
-                   MS_OS_10_COMPAT_ID_PROPERTIES_DESC_LEN,
-               "Invalid Microsoft OS 1.0 properties descriptor size");
+_Static_assert(M_ARRAY_SIZE(desc_ms_os_20) == MS_OS_20_DESC_LEN,
+               "Invalid Microsoft OS 2.0 descriptor size");
 
 //--------------------------------------------------------------------+
 // TinyUSB Callbacks
@@ -297,7 +274,7 @@ static void generate_desc_configuration(uint8_t *dst) {
                                polling_interval),
       // XInput interface descriptor
       XINPUT_DESCRIPTOR(USB_ITF_XINPUT, 0, EP_OUT_ADDR_XINPUT,
-                        EP_IN_ADDR_XINPUT),
+                        EP_IN_ADDR_XINPUT, polling_interval),
   };
 
   _Static_assert(sizeof(src) == CONFIG_TOTAL_LEN,
@@ -364,20 +341,10 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
       desc_str[i + 1] = serial_buf[i];
     break;
   }
-  case 0xEE: {
-    // Special string index for Microsoft OS 1.0 descriptor
-    if (!eeconfig->options.xinput_enabled)
-      // If XInput is not enabled, do not return the Microsoft OS 1.0
-      // descriptor.
-      return NULL;
-
-    // Microsoft OS 1.0 descriptor
-    memcpy(desc_str, desc_ms_os_10, sizeof(desc_ms_os_10));
-    return desc_str;
-  }
   default: {
     if (index >= STR_ID_COUNT)
-      // Unknown string
+      // Unknown string. Note that index 0xEE is reserved for Microsoft OS 1.0
+      // descriptor, but we don't use it.
       return NULL;
 
     const char *str = desc_strings[index];
@@ -401,6 +368,8 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
   return desc_str;
 }
 
+const uint8_t *tud_descriptor_bos_cb(void) { return desc_bos; }
+
 bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
                                 const tusb_control_request_t *request) {
   if (stage != CONTROL_STAGE_SETUP)
@@ -408,17 +377,12 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
     return true;
 
   if (request->bmRequestType_bit.type == TUSB_REQ_TYPE_VENDOR &&
-      request->bRequest == MS_OS_10_VENDOR_CODE) {
+      request->bRequest == MS_OS_20_VENDOR_CODE) {
     switch (request->wIndex) {
-    case 0x04:
-      // Compatibility ID request
-      return tud_control_xfer(rhport, request, (void *)desc_ms_os_10_compat_id,
-                              MS_OS_10_COMPAT_ID_TOTAL_LEN);
-
-    case 0x05:
-      // Properties request
-      return tud_control_xfer(rhport, request, (void *)desc_ms_os_10_properties,
-                              MS_OS_10_COMPAT_ID_PROPERTIES_DESC_LEN);
+    case 0x07:
+      // Microsoft OS 2.0 descriptor request
+      return tud_control_xfer(rhport, request, (void *)desc_ms_os_20,
+                              MS_OS_20_DESC_LEN);
 
     default:
       // Unsupported request

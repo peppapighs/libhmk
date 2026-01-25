@@ -30,6 +30,7 @@
   }
 
 static uint8_t out_buf[RAW_HID_EP_SIZE];
+static const uint8_t keyboard_metadata[] = {KEYBOARD_METADATA};
 
 void command_init(void) {}
 
@@ -136,10 +137,10 @@ void command_process(const uint8_t *buf) {
   case COMMAND_GET_METADATA: {
     const command_in_metadata_t *p = &in->metadata;
 
-    COMMAND_VERIFY(p->offset < sizeof(metadata_compressed));
+    COMMAND_VERIFY(p->offset < sizeof(keyboard_metadata));
 
-    out->metadata.len = sizeof(metadata_compressed) - p->offset;
-    memcpy(out->metadata.metadata, &metadata_compressed[p->offset],
+    out->metadata.len = sizeof(keyboard_metadata) - p->offset;
+    memcpy(out->metadata.metadata, &keyboard_metadata[p->offset],
            M_MIN(sizeof(out->metadata.metadata), out->metadata.len));
     break;
   }

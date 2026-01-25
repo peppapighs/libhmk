@@ -39,6 +39,7 @@ if __name__ == "__main__":
     ]
     extra_scripts = [
         "pre:scripts/get_deps.py",
+        "pre:scripts/validate.py",
         "pre:scripts/make.py",
         "pre:scripts/metadata.py",
     ]

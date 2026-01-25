@@ -263,8 +263,8 @@ static uint16_t xinput_driver_open(uint8_t rhport,
                                    const tusb_desc_interface_t *desc_intf,
                                    uint16_t max_len) {
   if (desc_intf->bInterfaceClass == TUSB_CLASS_VENDOR_SPECIFIC &&
-      desc_intf->bInterfaceSubClass == 0x5D &&
-      desc_intf->bInterfaceProtocol == 0x01) {
+      desc_intf->bInterfaceSubClass == XINPUT_SUBCLASS_DEFAULT &&
+      desc_intf->bInterfaceProtocol == XINPUT_PROTOCOL_DEFAULT) {
     TU_ASSERT(usbd_open_edpt_pair(rhport, tu_desc_next(tu_desc_next(desc_intf)),
                                   desc_intf->bNumEndpoints, TUSB_XFER_INTERRUPT,
                                   &endpoint_out, &endpoint_in),

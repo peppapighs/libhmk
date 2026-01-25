@@ -21,27 +21,29 @@
 // XInput Report
 //--------------------------------------------------------------------+
 
+#define XINPUT_SUBCLASS_DEFAULT 0x5D
+#define XINPUT_PROTOCOL_DEFAULT 0x01
 #define XINPUT_EP_SIZE 32
-// Length of the XInput template descriptor: 40 bytes
-#define XINPUT_DESC_LEN (9 + 17 + 7 + 7)
+// Length of the XInput template descriptor: 39 bytes
+#define XINPUT_DESC_LEN (9 + 16 + 7 + 7)
 
 // XInput descriptor
-#define XINPUT_DESCRIPTOR(itfnum, stridx, epout, epin)                         \
+#define XINPUT_DESCRIPTOR(itfnum, stridx, epout, epin, ep_interval)            \
   /* Interface */                                                              \
-  9, TUSB_DESC_INTERFACE, itfnum, 0, 2, TUSB_CLASS_VENDOR_SPECIFIC, 0x5D,      \
-      0x01, stridx,                                                            \
+  9, TUSB_DESC_INTERFACE, itfnum, 0, 2, TUSB_CLASS_VENDOR_SPECIFIC,            \
+      XINPUT_SUBCLASS_DEFAULT, XINPUT_PROTOCOL_DEFAULT, stridx,                \
                                                                                \
       /* Undocumented */                                                       \
-      17, HID_DESC_TYPE_HID, U16_TO_U8S_LE(0x0100), 0x01, 0x25, epin, 0x14,    \
-      0x00, 0x00, 0x00, 0x00, 0x13, epout, 0x08, 0x00, 0x00,                   \
+      16, HID_DESC_TYPE_HID, U16_TO_U8S_LE(0x0110), 0x01, 0x24, epin, 0x14,    \
+      0x03, 0x00, 0x03, 0x13, epout, 0x00, 0x03, 0x00,                         \
                                                                                \
       /* Endpoint In */                                                        \
       7, TUSB_DESC_ENDPOINT, epin, TUSB_XFER_INTERRUPT,                        \
-      U16_TO_U8S_LE(XINPUT_EP_SIZE), 0x04,                                     \
+      U16_TO_U8S_LE(XINPUT_EP_SIZE), ep_interval,                              \
                                                                                \
       /* Endpoint Out */                                                       \
       7, TUSB_DESC_ENDPOINT, epout, TUSB_XFER_INTERRUPT,                       \
-      U16_TO_U8S_LE(XINPUT_EP_SIZE), 0x08
+      U16_TO_U8S_LE(XINPUT_EP_SIZE), ep_interval
 
 // XInput buttons bitmask
 typedef enum {
