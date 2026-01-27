@@ -16,12 +16,12 @@
 #include "layout.h"
 
 #include "advanced_keys.h"
-#include "bitmap.h"
 #include "deferred_actions.h"
 #include "eeconfig.h"
 #include "hardware/hardware.h"
 #include "hid.h"
 #include "keycodes.h"
+#include "lib/bitmap.h"
 #include "matrix.h"
 #include "xinput.h"
 

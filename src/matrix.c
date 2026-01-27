@@ -15,10 +15,10 @@
 
 #include "matrix.h"
 
-#include "bitmap.h"
 #include "distance.h"
 #include "eeconfig.h"
 #include "hardware/hardware.h"
+#include "lib/bitmap.h"
 
 // Exponential moving average (EMA) filter
 #define EMA(x, y)                                                              \

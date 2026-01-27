@@ -15,9 +15,9 @@
 
 #include "xinput.h"
 
-#include "bitmap.h"
 #include "device/usbd_pvt.h"
 #include "eeconfig.h"
+#include "lib/bitmap.h"
 #include "lib/usqrt.h"
 #include "matrix.h"
 #include "tusb.h"

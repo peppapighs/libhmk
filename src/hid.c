@@ -15,7 +15,6 @@
 
 #include "hid.h"
 
-#include "bitmap.h"
 #include "commands.h"
 #include "keycodes.h"
 #include "matrix.h"
