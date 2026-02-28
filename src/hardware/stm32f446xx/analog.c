@@ -194,7 +194,7 @@ void analog_init(void) {
   tim_handle.Instance = TIM10;
   tim_handle.Init.Prescaler = 0;
   tim_handle.Init.CounterMode = TIM_COUNTERMODE_UP;
-  tim_handle.Init.Period = (F_CPU / 2000000) * ADC_SAMPLE_DELAY - 1;
+  tim_handle.Init.Period = (F_CPU / 1000000) * ADC_SAMPLE_DELAY - 1;
   tim_handle.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   tim_handle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&tim_handle) != HAL_OK)
