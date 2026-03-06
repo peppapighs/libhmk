@@ -149,6 +149,22 @@ void command_process(const uint8_t *buf) {
     board_serial(out->serial);
     break;
   }
+  case COMMAND_SAVE_CALIBRATION_THRESHOLD: {
+    uint16_t bottom_out_threshold[NUM_KEYS];
+
+    for (uint32_t i = 0; i < NUM_KEYS; i++) {
+      if (key_matrix[i].adc_bottom_out_value < key_matrix[i].adc_rest_value)
+        bottom_out_threshold[i] = 0;
+      else
+        bottom_out_threshold[i] =
+            key_matrix[i].adc_bottom_out_value - key_matrix[i].adc_rest_value;
+    }
+    success = EECONFIG_WRITE(bottom_out_threshold, bottom_out_threshold);
+    break;
+  }
+    //--------------------------------------------------------------------+
+    // Per-profile commands
+    //--------------------------------------------------------------------+
   case COMMAND_SET_KEYMAP: {
     const command_in_keymap_t *p = &in->keymap;
 

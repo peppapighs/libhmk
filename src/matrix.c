@@ -47,28 +47,6 @@ key_state_t key_matrix[NUM_KEYS];
 
 // Bitmap for tracking which keys have Rapid Trigger disabled
 static bitmap_t rapid_trigger_disabled[] = MAKE_BITMAP(NUM_KEYS);
-// Last time the bottom-out threshold changed
-static uint32_t last_bottom_out_threshold_changed;
-
-/**
- * @brief Save the current bottom-out threshold to the persistent configuration
- *
- * @return None
- */
-static void matrix_save_bottom_out_threshold(void) {
-  uint16_t bottom_out_threshold[NUM_KEYS];
-
-  for (uint32_t i = 0; i < NUM_KEYS; i++) {
-    if (key_matrix[i].adc_bottom_out_value >= key_matrix[i].adc_rest_value)
-      bottom_out_threshold[i] =
-          key_matrix[i].adc_bottom_out_value - key_matrix[i].adc_rest_value;
-    else
-      bottom_out_threshold[i] = 0;
-  }
-  EECONFIG_WRITE(bottom_out_threshold, bottom_out_threshold);
-  // Reset the timer to delay the next save
-  last_bottom_out_threshold_changed = timer_read();
-}
 
 void matrix_init(void) { matrix_recalibrate(false); }
 
@@ -114,8 +92,6 @@ void matrix_recalibrate(bool reset_bottom_out_threshold) {
           matrix_bottom_out_value(i, key_matrix[i].adc_rest_value);
     }
   }
-  // Reset the timer after calibration
-  last_bottom_out_threshold_changed = timer_read();
 }
 
 void matrix_scan(void) {
@@ -127,12 +103,10 @@ void matrix_scan(void) {
     key_matrix[i].adc_filtered = new_adc_filtered;
 
     if (new_adc_filtered >=
-        key_matrix[i].adc_bottom_out_value + MATRIX_CALIBRATION_EPSILON) {
+        key_matrix[i].adc_bottom_out_value + MATRIX_CALIBRATION_EPSILON)
       // Only update the bottom-out value if the new value is larger and the
       // difference is at least the calibration epsilon.
       key_matrix[i].adc_bottom_out_value = new_adc_filtered;
-      last_bottom_out_threshold_changed = timer_read();
-    }
 
     key_matrix[i].distance =
         adc_to_distance(new_adc_filtered, key_matrix[i].adc_rest_value,
@@ -196,12 +170,6 @@ void matrix_scan(void) {
       }
     }
   }
-
-  // Save the bottom-out threshold after inactivity if enabled
-  if (eeconfig->options.save_bottom_out_threshold &&
-      timer_elapsed(last_bottom_out_threshold_changed) >=
-          MATRIX_INACTIVITY_TIMEOUT)
-    matrix_save_bottom_out_threshold();
 }
 
 void matrix_disable_rapid_trigger(uint8_t key, bool disable) {

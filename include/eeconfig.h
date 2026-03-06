@@ -47,8 +47,7 @@ typedef union __attribute__((packed)) {
   struct __attribute__((packed)) {
     // Whether the XInput interface is enabled
     bool xinput_enabled : 1;
-    // Whether to save the bottom-out threshold
-    bool save_bottom_out_threshold : 1;
+    bool _unused0 : 1;
     // Whether 8kHz polling rate is enabled. Only applicable if USB HS is
     // enabled. If disabled, the 1kHz polling rate is used instead.
     bool high_polling_rate_enabled : 1;
@@ -128,7 +127,6 @@ extern const eeconfig_t *eeconfig;
 #define DEFAULT_OPTIONS                                                        \
   {                                                                            \
       .xinput_enabled = false,                                                 \
-      .save_bottom_out_threshold = true,                                       \
       .high_polling_rate_enabled = true,                                       \
   }
 #endif
