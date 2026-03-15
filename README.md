@@ -54,7 +54,6 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
 4. Wait for PlatformIO to finish initializing the environment.
 
 5. Build the firmware using either `pio run` in the PlatformIO Core CLI or through the PlatformIO IDE's "Build" option. The firmware binaries will be generated in the `.pio/build/<YOUR_KEYBOARD>/` directory with the following files:
-
    - `firmware.bin`: The binary firmware file
    - `firmware.elf`: The ELF firmware file
 
@@ -68,7 +67,7 @@ The development branch is `dev`, which contains the latest features and bug fixe
 
 To develop a new keyboard, create a new directory under `keyboards/` with your keyboard's name. This directory should include the following files:
 
-- `keyboard.json`: A JSON file containing metadata about your keyboard, used for both firmware compilation and the web configurator. Refer to [`scripts/schema/keyboard.schema.json`](scripts/schema/keyboard.schema.json) for the schema.
+- `keyboard.json`: A JSON file containing metadata about your keyboard, used for both firmware compilation and the web configurator. Refer to [`scripts/schema/keyboard.py`](scripts/schema/keyboard.py) for the schema.
 - `config.h` (Optional): Additional configuration header for your keyboard to define custom configurations beyond what's specified in `keyboard.json`.
 
 You can use an existing keyboard implementation as a reference. If your keyboard hardware isn't currently supported by the firmware, you'll need to implement the necessary drivers and features. See the [Porting](#porting) section for more details.

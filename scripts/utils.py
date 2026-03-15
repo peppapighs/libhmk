@@ -11,9 +11,9 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
-import json
 import os
 from drivers import *
+from schema.keyboard import Keyboard
 
 
 class CompilerFlags:
@@ -45,16 +45,16 @@ class CompilerFlags:
         self.flags.append(f"-I{path}")
 
 
-# Load the keyboard JSON configuration file
+# Load and validate the keyboard JSON configuration file
 def get_kb_json(keyboard: str):
     with open(os.path.join("keyboards", keyboard, "keyboard.json"), "r") as f:
-        return json.load(f)
+        return Keyboard.model_validate_json(f.read())
 
 
 # Load the driver based on the keyboard configuration
 def get_driver(keyboard: str):
     kb_json = get_kb_json(keyboard)
-    driver = kb_json["hardware"]["driver"]
+    driver = kb_json.hardware.driver
     match driver:
         case "stm32f446xx":
             return STM32F446XX
@@ -80,18 +80,18 @@ def to_slice_def(name: str, arr: list | bytes):
 
 
 # Get the ADC resolution, or default to the maximum resolution supported by the MCU
-def get_adc_resolution(kb_json: dict, driver: Driver):
-    return kb_json["analog"].get("adc_resolution", driver.metadata.adc.max_resolution)
+def get_adc_resolution(kb_json: Keyboard, driver: Driver):
+    return kb_json.analog.adc_resolution or driver.metadata.adc.max_resolution
 
 
 # Resolve per-profile default keymaps
-def resolve_default_keymaps(kb_json: dict) -> list[list[list[str]]]:
-    if "keymaps" in kb_json:
-        return kb_json["keymaps"]
+def resolve_default_keymaps(kb_json: Keyboard) -> list[list[list[str]]]:
+    if kb_json.keymaps is not None:
+        return kb_json.keymaps
     else:
         # Fallback to default keymap
-        if "keymap" not in kb_json:
+        if kb_json.keymap is None:
             raise ValueError(
                 "Default keymap must be specified when no per-profile default keymaps are specified"
             )
-        return [kb_json["keymap"]] * kb_json["keyboard"]["num_profiles"]
+        return [kb_json.keymap] * kb_json.keyboard.num_profiles

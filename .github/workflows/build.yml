@@ -6,6 +6,7 @@ on:
     branches: [main, dev]
     paths:
       - "setup.py"
+      - "requirements.txt"
       - "hardware/**"
       - "include/**"
       - "keyboards/**"
@@ -18,6 +19,7 @@ on:
     branches: [main, dev]
     paths:
       - "setup.py"
+      - "requirements.txt"
       - "hardware/**"
       - "include/**"
       - "keyboards/**"
@@ -39,7 +41,7 @@ jobs:
       matrix: ${{ steps.define-matrix.outputs.matrix }}
     steps:
       - name: Checkout libhmk
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Generate Matrix
         id: define-matrix
@@ -57,20 +59,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout libhmk
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
       - name: Setup PlatformIO Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/pip
             ~/.platformio/.cache
           key: ${{ runner.os }}-pio
+
+      - name: Install Python Dependencies
+        run: pip install -r requirements.txt
 
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
@@ -81,7 +86,7 @@ jobs:
           pio run
 
       - name: Archive Firmware Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: firmware-${{ matrix.keyboard }}
           path: |
@@ -95,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Firmware Artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           pattern: firmware-*
 

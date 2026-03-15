@@ -15,6 +15,7 @@ import gzip
 import json
 import os
 import utils
+from schema.keyboard import KeyboardUSBPort
 from uuid import uuid4
 
 METADATA_TEMPLATE = """#pragma once
@@ -49,16 +50,16 @@ def ms_os_20_guid_def():
 
 def keyboard_metadata_def():
     metadata = {
-        "name": kb_json["name"],
-        "vendorId": kb_json["usb"]["vid"],
-        "productId": kb_json["usb"]["pid"],
-        "usbHighSpeed": kb_json["usb"]["port"] == "hs",
+        "name": kb_json.name,
+        "vendorId": kb_json.usb.vid,
+        "productId": kb_json.usb.pid,
+        "usbHighSpeed": kb_json.usb.port == KeyboardUSBPort.HIGH_SPEED,
         "adcResolution": utils.get_adc_resolution(kb_json, driver),
-        "numProfiles": kb_json["keyboard"]["num_profiles"],
-        "numLayers": kb_json["keyboard"]["num_layers"],
-        "numKeys": kb_json["keyboard"]["num_keys"],
-        "numAdvancedKeys": kb_json["keyboard"]["num_advanced_keys"],
-        "layout": kb_json["layout"],
+        "numProfiles": kb_json.keyboard.num_profiles,
+        "numLayers": kb_json.keyboard.num_layers,
+        "numKeys": kb_json.keyboard.num_keys,
+        "numAdvancedKeys": kb_json.keyboard.num_advanced_keys,
+        "layout": kb_json.layout.model_dump(exclude_none=True),
         "defaultKeymaps": utils.resolve_default_keymaps(kb_json),
     }
 

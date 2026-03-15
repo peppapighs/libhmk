@@ -13,7 +13,7 @@
 
 Import("env")
 
-PIP_PACKAGES = ["pip", "jsonschema"]
+PIP_PACKAGES = ["pip", "pydantic"]
 
 for package in PIP_PACKAGES:
     env.Execute(f"$PYTHONEXE -m pip install {package} --upgrade")
