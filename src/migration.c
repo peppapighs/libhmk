@@ -65,6 +65,14 @@ static bool v1_5_profile_config_func(uint8_t profile, uint8_t *dst,
   (NUM_LAYERS * NUM_KEYS + NUM_KEYS * 4 +                                      \
    NUM_ADVANCED_KEYS * MIGRATION_V1_5_ADVANCED_KEY_SIZE + NUM_KEYS + 9 + 1)
 
+static bool v1_6_global_config_func(uint8_t *dst, const uint8_t *src);
+static bool v1_6_profile_config_func(uint8_t profile, uint8_t *dst,
+                                     const uint8_t *src);
+
+#define MIGRATION_V1_6_GLOBAL_CONFIG_SIZE MIGRATION_V1_5_GLOBAL_CONFIG_SIZE
+#define MIGRATION_V1_6_PROFILE_CONFIG_SIZE                                     \
+  (MIGRATION_V1_5_PROFILE_CONFIG_SIZE + STRING_MACRO_BUFFER_SIZE)
+
 // Migration metadata for each configuration version. The first entry is
 // reserved for the initial version (v1.0) which does not require migration.
 static const migration_t migrations[] = {
@@ -108,13 +116,20 @@ static const migration_t migrations[] = {
         .global_config_func = v1_5_global_config_func,
         .profile_config_func = v1_5_profile_config_func,
     },
+    {
+        .version = 0x0106,
+        .global_config_size = MIGRATION_V1_6_GLOBAL_CONFIG_SIZE,
+        .profile_config_size = MIGRATION_V1_6_PROFILE_CONFIG_SIZE,
+        .global_config_func = v1_6_global_config_func,
+        .profile_config_func = v1_6_profile_config_func,
+    },
 };
 
 // An assertion to remind us to bump the persistent configuration version, and
 // implement a migration function if there is a change to the configuration
 // type. Update the assertion when a new version is added.
-_Static_assert(MIGRATION_V1_5_GLOBAL_CONFIG_SIZE +
-                       NUM_PROFILES * MIGRATION_V1_5_PROFILE_CONFIG_SIZE ==
+_Static_assert(MIGRATION_V1_6_GLOBAL_CONFIG_SIZE +
+                       NUM_PROFILES * MIGRATION_V1_6_PROFILE_CONFIG_SIZE ==
                    offsetof(eeconfig_t, magic_end),
                "Invalid configuration size");
 
@@ -372,6 +387,37 @@ bool v1_5_profile_config_func(uint8_t profile, uint8_t *dst,
                          MIGRATION_V1_5_ADVANCED_KEY_SIZE);
   }
 
+  // Copy the remaining profile fields.
+  migration_memcpy(&dst, &src, NUM_KEYS + 9 + 1);
+
+  return true;
+}
+
+//--------------------------------------------------------------------+
+// v1.5 -> v1.6 Migration
+//--------------------------------------------------------------------+
+
+bool v1_6_global_config_func(uint8_t *dst, const uint8_t *src) {
+  if (((eeconfig_t *)src)->version != 0x0105)
+    // Expected version v1.5
+    return false;
+
+  // Copy the entire global configuration.
+  migration_memcpy(&dst, &src, MIGRATION_V1_6_GLOBAL_CONFIG_SIZE);
+
+  return true;
+}
+
+bool v1_6_profile_config_func(uint8_t profile, uint8_t *dst,
+                              const uint8_t *src) {
+  (void)profile;
+
+  // Copy `keymap` through `advanced_keys`.
+  migration_memcpy(&dst, &src,
+                   NUM_LAYERS * NUM_KEYS + NUM_KEYS * 4 +
+                       NUM_ADVANCED_KEYS * MIGRATION_V1_5_ADVANCED_KEY_SIZE);
+  // Clear the new per-profile String Macro buffer.
+  migration_memset(&dst, 0, STRING_MACRO_BUFFER_SIZE);
   // Copy the remaining profile fields.
   migration_memcpy(&dst, &src, NUM_KEYS + 9 + 1);
 

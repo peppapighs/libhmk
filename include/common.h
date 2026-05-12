@@ -97,6 +97,14 @@ _Static_assert(4 <= NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS &&
                    NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS <= 64,
                "NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS must be between 4 and 64");
 
+#if !defined(STRING_MACRO_BUFFER_SIZE)
+#error "STRING_MACRO_BUFFER_SIZE is not defined"
+#endif
+
+_Static_assert(4 <= STRING_MACRO_BUFFER_SIZE &&
+                   STRING_MACRO_BUFFER_SIZE <= 4096,
+               "STRING_MACRO_BUFFER_SIZE must be between 4 and 4096");
+
 //--------------------------------------------------------------------+
 // Keyboard Types
 //--------------------------------------------------------------------+
@@ -122,6 +130,7 @@ typedef enum {
   AK_TYPE_DYNAMIC_KEYSTROKE,
   AK_TYPE_TAP_HOLD,
   AK_TYPE_TOGGLE,
+  AK_TYPE_STRING_MACRO,
   AK_TYPE_COUNT,
 } ak_type_t;
 
@@ -189,6 +198,33 @@ typedef struct __attribute__((packed)) {
   uint16_t tapping_term;
 } toggle_t;
 
+// String Macro action
+typedef enum {
+  STRING_MACRO_ACTION_NONE = 0,
+  STRING_MACRO_ACTION_PRESS,
+  STRING_MACRO_ACTION_TAP,
+  STRING_MACRO_ACTION_RELEASE,
+  STRING_MACRO_ACTION_COUNT,
+} string_macro_action_t;
+
+// String Macro step. `delay` is the time before the next step in 10 ms units.
+typedef struct __attribute__((packed)) {
+  uint8_t keycode;
+  uint8_t action;
+  uint8_t delay;
+} string_macro_step_t;
+
+_Static_assert(sizeof(string_macro_step_t) == 3,
+               "Invalid string_macro_step_t size");
+
+// String Macro configuration
+typedef struct __attribute__((packed)) {
+  // Byte offset within the profile string macro buffer
+  uint16_t offset;
+  // Number of bytes to execute from the profile string macro buffer
+  uint16_t len;
+} string_macro_t;
+
 // Advanced key configuration
 typedef struct __attribute__((packed)) {
   uint8_t layer;
@@ -199,6 +235,7 @@ typedef struct __attribute__((packed)) {
     dynamic_keystroke_t dynamic_keystroke;
     tap_hold_t tap_hold;
     toggle_t toggle;
+    string_macro_t string_macro;
   };
 } advanced_key_t;
 

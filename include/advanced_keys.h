@@ -81,6 +81,27 @@ typedef struct {
 } ak_state_toggle_t;
 
 //--------------------------------------------------------------------+
+// String Macro State
+//--------------------------------------------------------------------+
+
+typedef struct {
+  // Time when the last macro step ran
+  uint32_t since;
+  // Delay before the next macro step in milliseconds
+  uint16_t delay;
+  // Byte offset of the next macro step relative to the macro start
+  uint16_t position;
+  // Keycode to release for an in-progress tap
+  uint8_t tap_keycode;
+  // Key index that triggered the macro
+  uint8_t key;
+  // Whether a tap key is currently pressed
+  bool is_tapping;
+  // Whether the macro is currently running
+  bool is_running;
+} ak_state_string_macro_t;
+
+//--------------------------------------------------------------------+
 // Advanced Key State
 //--------------------------------------------------------------------+
 
@@ -90,6 +111,7 @@ typedef union {
   ak_state_dynamic_keystroke_t dynamic_keystroke;
   ak_state_tap_hold_t tap_hold;
   ak_state_toggle_t toggle;
+  ak_state_string_macro_t string_macro;
 } advanced_key_state_t;
 
 //--------------------------------------------------------------------+

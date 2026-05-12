@@ -53,6 +53,8 @@ typedef enum {
   COMMAND_SET_GAMEPAD_BUTTONS,
   COMMAND_GET_GAMEPAD_OPTIONS,
   COMMAND_SET_GAMEPAD_OPTIONS,
+  COMMAND_GET_STRING_MACROS,
+  COMMAND_SET_STRING_MACROS,
 
   COMMAND_UNKNOWN = 255,
 } command_id_t;
@@ -65,6 +67,8 @@ typedef enum {
 // the command header fields.
 #define COMMAND_SET_ADVANCED_KEYS_BYTES_PER_PACKET 59
 #define COMMAND_GET_ADVANCED_KEYS_BYTES_PER_PACKET 62
+#define COMMAND_SET_STRING_MACROS_BYTES_PER_PACKET 59
+#define COMMAND_GET_STRING_MACROS_BYTES_PER_PACKET 62
 
 typedef struct __attribute__((packed)) {
   uint8_t offset;
@@ -128,6 +132,15 @@ typedef struct __attribute__((packed)) {
   gamepad_options_t gamepad_options;
 } command_in_gamepad_options_t;
 
+typedef struct __attribute__((packed)) {
+  uint8_t profile;
+  // Byte offset within `string_macros`.
+  uint16_t offset;
+  // Number of bytes to write from `data`
+  uint8_t len;
+  uint8_t data[COMMAND_SET_STRING_MACROS_BYTES_PER_PACKET];
+} command_in_string_macros_t;
+
 // Command input buffer type
 typedef struct __attribute__((packed)) {
   uint8_t command_id;
@@ -145,6 +158,7 @@ typedef struct __attribute__((packed)) {
     command_in_tick_rate_t tick_rate;
     command_in_gamepad_buttons_t gamepad_buttons;
     command_in_gamepad_options_t gamepad_options;
+    command_in_string_macros_t string_macros;
   };
 } command_in_buffer_t;
 
@@ -170,6 +184,12 @@ typedef struct __attribute__((packed)) {
   uint8_t len;
   uint8_t data[COMMAND_GET_ADVANCED_KEYS_BYTES_PER_PACKET];
 } command_out_advanced_keys_t;
+
+typedef struct __attribute__((packed)) {
+  // Number of valid bytes in `data`
+  uint8_t len;
+  uint8_t data[COMMAND_GET_STRING_MACROS_BYTES_PER_PACKET];
+} command_out_string_macros_t;
 
 // Command output buffer type
 typedef struct __attribute__((packed)) {
@@ -202,6 +222,8 @@ typedef struct __attribute__((packed)) {
     uint8_t gamepad_buttons[63];
     // For `COMMAND_GET_GAMEPAD_OPTIONS`
     gamepad_options_t gamepad_options;
+    // For `COMMAND_GET_STRING_MACROS`
+    command_out_string_macros_t string_macros;
   };
 } command_out_buffer_t;
 
@@ -211,6 +233,10 @@ _Static_assert(sizeof(command_in_advanced_keys_t) == RAW_HID_EP_SIZE - 1,
                "Invalid advanced key input packet size");
 _Static_assert(sizeof(command_out_advanced_keys_t) == RAW_HID_EP_SIZE - 1,
                "Invalid advanced key output packet size");
+_Static_assert(sizeof(command_in_string_macros_t) == RAW_HID_EP_SIZE - 1,
+               "Invalid string macro input packet size");
+_Static_assert(sizeof(command_out_string_macros_t) == RAW_HID_EP_SIZE - 1,
+               "Invalid string macro output packet size");
 
 //---------------------------------------------------------------------+
 // Command API

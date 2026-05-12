@@ -351,6 +351,37 @@ static void command_process(void) {
     success = command_stage_advanced_key_write(p);
     break;
   }
+  case COMMAND_GET_STRING_MACROS: {
+    const command_in_string_macros_t *p = &in->string_macros;
+    const uint32_t string_macros_size =
+        sizeof(eeconfig->profiles[p->profile].string_macros);
+
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(p->offset < string_macros_size);
+
+    out->string_macros.len = M_MIN(M_ARRAY_SIZE(out->string_macros.data),
+                                   string_macros_size - p->offset);
+    memcpy(out->string_macros.data,
+           eeconfig->profiles[p->profile].string_macros + p->offset,
+           out->string_macros.len);
+    break;
+  }
+  case COMMAND_SET_STRING_MACROS: {
+    const command_in_string_macros_t *p = &in->string_macros;
+    const uint32_t string_macros_size =
+        sizeof(eeconfig->profiles[p->profile].string_macros);
+
+    COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(p->offset < string_macros_size);
+    COMMAND_VERIFY(p->len <= M_ARRAY_SIZE(p->data) &&
+                   p->len <= string_macros_size - p->offset);
+
+    if (p->profile == eeconfig->current_profile)
+      advanced_key_clear();
+    success = EECONFIG_WRITE_N(profiles[p->profile].string_macros[p->offset],
+                               p->data, sizeof(uint8_t) * p->len);
+    break;
+  }
   case COMMAND_GET_TICK_RATE: {
     const command_in_tick_rate_t *p = &in->tick_rate;
 
