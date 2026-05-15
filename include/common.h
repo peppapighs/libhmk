@@ -101,9 +101,9 @@ _Static_assert(4 <= NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS &&
 #error "STRING_MACRO_BUFFER_SIZE is not defined"
 #endif
 
-_Static_assert(4 <= STRING_MACRO_BUFFER_SIZE &&
+_Static_assert(5 <= STRING_MACRO_BUFFER_SIZE &&
                    STRING_MACRO_BUFFER_SIZE <= 4096,
-               "STRING_MACRO_BUFFER_SIZE must be between 4 and 4096");
+               "STRING_MACRO_BUFFER_SIZE must be between 5 and 4096");
 
 //--------------------------------------------------------------------+
 // Keyboard Types
@@ -207,22 +207,33 @@ typedef enum {
   STRING_MACRO_ACTION_COUNT,
 } string_macro_action_t;
 
-// String Macro step. `delay` is the time before the next step in 10 ms units.
+typedef uint16_t string_macro_node_id_t;
+
+#define STRING_MACRO_NODE_NONE UINT16_MAX
+
+// String Macro node. `delay` is the time before the next node in 10 ms units.
 typedef struct __attribute__((packed)) {
   uint8_t keycode;
   uint8_t action;
   uint8_t delay;
-} string_macro_step_t;
+  string_macro_node_id_t next;
+} string_macro_node_t;
 
-_Static_assert(sizeof(string_macro_step_t) == 3,
-               "Invalid string_macro_step_t size");
+_Static_assert(sizeof(string_macro_node_t) == 5,
+               "Invalid string_macro_node_t size");
+
+#define STRING_MACRO_NODE_COUNT                                                \
+  (STRING_MACRO_BUFFER_SIZE / sizeof(string_macro_node_t))
+#define STRING_MACRO_NODE_BUFFER_SIZE                                          \
+  (STRING_MACRO_NODE_COUNT * sizeof(string_macro_node_t))
+
+_Static_assert(STRING_MACRO_NODE_COUNT > 0,
+               "STRING_MACRO_BUFFER_SIZE must fit at least one macro node");
 
 // String Macro configuration
 typedef struct __attribute__((packed)) {
-  // Byte offset within the profile string macro buffer
-  uint16_t offset;
-  // Number of bytes to execute from the profile string macro buffer
-  uint16_t len;
+  // First node in the profile string macro node buffer.
+  string_macro_node_id_t first_node;
 } string_macro_t;
 
 // Advanced key configuration

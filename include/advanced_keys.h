@@ -89,8 +89,10 @@ typedef struct {
   uint32_t since;
   // Delay before the next macro step in milliseconds
   uint16_t delay;
-  // Byte offset of the next macro step relative to the macro start
-  uint16_t position;
+  // Node index of the next macro step
+  string_macro_node_id_t current_node;
+  // Number of nodes visited while running this macro
+  uint16_t visited_count;
   // Keycode to release for an in-progress tap
   uint8_t tap_keycode;
   // Key index that triggered the macro

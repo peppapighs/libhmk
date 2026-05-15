@@ -253,51 +253,54 @@ static void advanced_key_string_macro_stop(uint8_t ak_index) {
 }
 
 static bool advanced_key_string_macro_validate(const string_macro_t *macro) {
-  return macro->len > 0 && macro->len % sizeof(string_macro_step_t) == 0 &&
-         macro->offset < STRING_MACRO_BUFFER_SIZE &&
-         macro->len <= STRING_MACRO_BUFFER_SIZE - macro->offset;
+  return macro->first_node != STRING_MACRO_NODE_NONE &&
+         macro->first_node < STRING_MACRO_NODE_COUNT;
 }
 
 static void advanced_key_string_macro_run_step(uint8_t ak_index) {
-  const string_macro_t *macro =
-      &CURRENT_PROFILE.advanced_keys[ak_index].string_macro;
   ak_state_string_macro_t *state = &ak_states[ak_index].string_macro;
 
-  if (state->position >= macro->len) {
+  if (state->current_node == STRING_MACRO_NODE_NONE ||
+      state->current_node >= STRING_MACRO_NODE_COUNT ||
+      state->visited_count >= STRING_MACRO_NODE_COUNT) {
     state->is_running = false;
     return;
   }
 
-  const string_macro_step_t *step =
-      (const string_macro_step_t *)(CURRENT_PROFILE.string_macros +
-                                    macro->offset + state->position);
-  state->position += sizeof(*step);
+  const string_macro_node_t *node =
+      &CURRENT_PROFILE.string_macros[state->current_node];
+  state->current_node = node->next;
+  state->visited_count++;
 
-  switch (step->action) {
+  if (state->current_node != STRING_MACRO_NODE_NONE &&
+      state->current_node >= STRING_MACRO_NODE_COUNT)
+    state->current_node = STRING_MACRO_NODE_NONE;
+
+  switch (node->action) {
   case STRING_MACRO_ACTION_PRESS:
-    layout_register(state->key, step->keycode);
-    bitmap_set(string_macro_pressed[ak_index], step->keycode,
-               step->keycode != KC_NO);
+    layout_register(state->key, node->keycode);
+    bitmap_set(string_macro_pressed[ak_index], node->keycode,
+               node->keycode != KC_NO);
     break;
 
   case STRING_MACRO_ACTION_TAP:
-    layout_register(state->key, step->keycode);
-    state->tap_keycode = step->keycode;
-    state->is_tapping = step->keycode != KC_NO;
+    layout_register(state->key, node->keycode);
+    state->tap_keycode = node->keycode;
+    state->is_tapping = node->keycode != KC_NO;
     break;
 
   case STRING_MACRO_ACTION_RELEASE:
-    layout_unregister(state->key, step->keycode);
-    bitmap_set(string_macro_pressed[ak_index], step->keycode, false);
+    layout_unregister(state->key, node->keycode);
+    bitmap_set(string_macro_pressed[ak_index], node->keycode, false);
     break;
 
   default:
     break;
   }
 
-  state->delay = (uint16_t)step->delay * STRING_MACRO_DELAY_UNIT_MS;
+  state->delay = (uint16_t)node->delay * STRING_MACRO_DELAY_UNIT_MS;
   state->since = timer_read();
-  if (state->position >= macro->len && !state->is_tapping)
+  if (state->current_node == STRING_MACRO_NODE_NONE && !state->is_tapping)
     state->is_running = false;
 }
 
@@ -314,6 +317,8 @@ static void advanced_key_string_macro(const advanced_key_event_t *event) {
       break;
 
     state->key = event->key;
+    state->current_node = macro->first_node;
+    state->visited_count = 0;
     state->is_running = true;
     state->since = timer_read();
     state->delay = 0;

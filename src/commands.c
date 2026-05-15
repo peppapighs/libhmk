@@ -362,7 +362,8 @@ static void command_process(void) {
     out->string_macros.len = M_MIN(M_ARRAY_SIZE(out->string_macros.data),
                                    string_macros_size - p->offset);
     memcpy(out->string_macros.data,
-           eeconfig->profiles[p->profile].string_macros + p->offset,
+           (const uint8_t *)eeconfig->profiles[p->profile].string_macros +
+               p->offset,
            out->string_macros.len);
     break;
   }
@@ -378,8 +379,12 @@ static void command_process(void) {
 
     if (p->profile == eeconfig->current_profile)
       advanced_key_clear();
-    success = EECONFIG_WRITE_N(profiles[p->profile].string_macros[p->offset],
-                               p->data, sizeof(uint8_t) * p->len);
+    const uint32_t string_macros_offset =
+        offsetof(eeconfig_t, profiles) +
+        p->profile * sizeof(eeconfig_profile_t) +
+        offsetof(eeconfig_profile_t, string_macros) + p->offset;
+    success = wear_leveling_write(
+        string_macros_offset, p->data, sizeof(uint8_t) * p->len);
     break;
   }
   case COMMAND_GET_TICK_RATE: {

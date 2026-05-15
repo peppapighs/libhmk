@@ -37,8 +37,8 @@ class KeyboardKeyboard(BaseModel):
     num_advanced_keys: int = Field(ge=1, le=64)
     # Maximum number of Dynamic Keystroke bindings per key. Higher values may require higher storage sizes.
     num_dynamic_keystroke_max_bindings: int = Field(ge=4, le=64, default=4)
-    # Per-profile storage size in bytes for String Macro steps.
-    string_macro_buffer_size: int = Field(ge=4, le=4096, default=512)
+    # Per-profile storage size in bytes for String Macro nodes.
+    string_macro_buffer_size: int = Field(ge=5, le=4096, default=512)
 
 
 # Hardware Configuration

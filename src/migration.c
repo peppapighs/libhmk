@@ -71,7 +71,7 @@ static bool v1_6_profile_config_func(uint8_t profile, uint8_t *dst,
 
 #define MIGRATION_V1_6_GLOBAL_CONFIG_SIZE MIGRATION_V1_5_GLOBAL_CONFIG_SIZE
 #define MIGRATION_V1_6_PROFILE_CONFIG_SIZE                                     \
-  (MIGRATION_V1_5_PROFILE_CONFIG_SIZE + STRING_MACRO_BUFFER_SIZE)
+  (MIGRATION_V1_5_PROFILE_CONFIG_SIZE + STRING_MACRO_NODE_BUFFER_SIZE)
 
 // Migration metadata for each configuration version. The first entry is
 // reserved for the initial version (v1.0) which does not require migration.
@@ -417,7 +417,7 @@ bool v1_6_profile_config_func(uint8_t profile, uint8_t *dst,
                    NUM_LAYERS * NUM_KEYS + NUM_KEYS * 4 +
                        NUM_ADVANCED_KEYS * MIGRATION_V1_5_ADVANCED_KEY_SIZE);
   // Clear the new per-profile String Macro buffer.
-  migration_memset(&dst, 0, STRING_MACRO_BUFFER_SIZE);
+  migration_memset(&dst, 0, STRING_MACRO_NODE_BUFFER_SIZE);
   // Copy the remaining profile fields.
   migration_memcpy(&dst, &src, NUM_KEYS + 9 + 1);
 
