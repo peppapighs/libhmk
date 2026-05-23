@@ -97,13 +97,13 @@ _Static_assert(4 <= NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS &&
                    NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS <= 64,
                "NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS must be between 4 and 64");
 
-#if !defined(STRING_MACRO_BUFFER_SIZE)
-#error "STRING_MACRO_BUFFER_SIZE is not defined"
+#if !defined(MACRO_BUFFER_SIZE)
+#error "MACRO_BUFFER_SIZE is not defined"
 #endif
 
-_Static_assert(5 <= STRING_MACRO_BUFFER_SIZE &&
-                   STRING_MACRO_BUFFER_SIZE <= 4096,
-               "STRING_MACRO_BUFFER_SIZE must be between 5 and 4096");
+_Static_assert(5 <= MACRO_BUFFER_SIZE &&
+                   MACRO_BUFFER_SIZE <= 4096,
+               "MACRO_BUFFER_SIZE must be between 5 and 4096");
 
 //--------------------------------------------------------------------+
 // Keyboard Types
@@ -130,7 +130,7 @@ typedef enum {
   AK_TYPE_DYNAMIC_KEYSTROKE,
   AK_TYPE_TAP_HOLD,
   AK_TYPE_TOGGLE,
-  AK_TYPE_STRING_MACRO,
+  AK_TYPE_MACRO,
   AK_TYPE_COUNT,
 } ak_type_t;
 
@@ -198,43 +198,43 @@ typedef struct __attribute__((packed)) {
   uint16_t tapping_term;
 } toggle_t;
 
-// String Macro action
+// Macro action
 typedef enum {
-  STRING_MACRO_ACTION_NONE = 0,
-  STRING_MACRO_ACTION_PRESS,
-  STRING_MACRO_ACTION_TAP,
-  STRING_MACRO_ACTION_RELEASE,
-  STRING_MACRO_ACTION_COUNT,
-} string_macro_action_t;
+  MACRO_ACTION_NONE = 0,
+  MACRO_ACTION_PRESS,
+  MACRO_ACTION_TAP,
+  MACRO_ACTION_RELEASE,
+  MACRO_ACTION_COUNT,
+} macro_action_t;
 
-typedef uint16_t string_macro_node_id_t;
+typedef uint16_t macro_node_id_t;
 
-#define STRING_MACRO_NODE_NONE UINT16_MAX
+#define MACRO_NODE_NONE UINT16_MAX
 
-// String Macro node. `delay` is the time before the next node in 10 ms units.
+// Macro node. `delay` is the time before the next node in 10 ms units.
 typedef struct __attribute__((packed)) {
   uint8_t keycode;
   uint8_t action;
   uint8_t delay;
-  string_macro_node_id_t next;
-} string_macro_node_t;
+  macro_node_id_t next;
+} macro_node_t;
 
-_Static_assert(sizeof(string_macro_node_t) == 5,
-               "Invalid string_macro_node_t size");
+_Static_assert(sizeof(macro_node_t) == 5,
+               "Invalid macro_node_t size");
 
-#define STRING_MACRO_NODE_COUNT                                                \
-  (STRING_MACRO_BUFFER_SIZE / sizeof(string_macro_node_t))
-#define STRING_MACRO_NODE_BUFFER_SIZE                                          \
-  (STRING_MACRO_NODE_COUNT * sizeof(string_macro_node_t))
+#define MACRO_NODE_COUNT                                                \
+  (MACRO_BUFFER_SIZE / sizeof(macro_node_t))
+#define MACRO_NODE_BUFFER_SIZE                                          \
+  (MACRO_NODE_COUNT * sizeof(macro_node_t))
 
-_Static_assert(STRING_MACRO_NODE_COUNT > 0,
-               "STRING_MACRO_BUFFER_SIZE must fit at least one macro node");
+_Static_assert(MACRO_NODE_COUNT > 0,
+               "MACRO_BUFFER_SIZE must fit at least one macro node");
 
-// String Macro configuration
+// Macro configuration
 typedef struct __attribute__((packed)) {
-  // First node in the profile string macro node buffer.
-  string_macro_node_id_t first_node;
-} string_macro_t;
+  // First node in the profile macro node buffer.
+  macro_node_id_t first_node;
+} macro_t;
 
 // Advanced key configuration
 typedef struct __attribute__((packed)) {
@@ -246,7 +246,7 @@ typedef struct __attribute__((packed)) {
     dynamic_keystroke_t dynamic_keystroke;
     tap_hold_t tap_hold;
     toggle_t toggle;
-    string_macro_t string_macro;
+    macro_t macro;
   };
 } advanced_key_t;
 

@@ -65,7 +65,7 @@ typedef struct __attribute__((packed)) {
   uint8_t keymap[NUM_LAYERS][NUM_KEYS];
   actuation_t actuation_map[NUM_KEYS];
   advanced_key_t advanced_keys[NUM_ADVANCED_KEYS];
-  string_macro_node_t string_macros[STRING_MACRO_NODE_COUNT];
+  macro_node_t macros[MACRO_NODE_COUNT];
   uint8_t gamepad_buttons[NUM_KEYS];
   gamepad_options_t gamepad_options;
   uint8_t tick_rate;
@@ -74,7 +74,7 @@ typedef struct __attribute__((packed)) {
 // Persistent configuration version. The size of the configuration must be
 // non-decreasing, so that the migration can assume that the new version is at
 // least as large as the previous version.
-#define EECONFIG_VERSION 0x0106
+#define EECONFIG_VERSION 0x0105
 
 // Keyboard configuration
 // Whenever there is a change in the configuration, `EECONFIG_VERSION` must be

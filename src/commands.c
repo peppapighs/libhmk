@@ -351,40 +351,40 @@ static void command_process(void) {
     success = command_stage_advanced_key_write(p);
     break;
   }
-  case COMMAND_GET_STRING_MACROS: {
-    const command_in_string_macros_t *p = &in->string_macros;
-    const uint32_t string_macros_size =
-        sizeof(eeconfig->profiles[p->profile].string_macros);
+  case COMMAND_GET_MACROS: {
+    const command_in_macros_t *p = &in->macros;
+    const uint32_t macros_size =
+        sizeof(eeconfig->profiles[p->profile].macros);
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
-    COMMAND_VERIFY(p->offset < string_macros_size);
+    COMMAND_VERIFY(p->offset < macros_size);
 
-    out->string_macros.len = M_MIN(M_ARRAY_SIZE(out->string_macros.data),
-                                   string_macros_size - p->offset);
-    memcpy(out->string_macros.data,
-           (const uint8_t *)eeconfig->profiles[p->profile].string_macros +
+    out->macros.len = M_MIN(M_ARRAY_SIZE(out->macros.data),
+                                   macros_size - p->offset);
+    memcpy(out->macros.data,
+           (const uint8_t *)eeconfig->profiles[p->profile].macros +
                p->offset,
-           out->string_macros.len);
+           out->macros.len);
     break;
   }
-  case COMMAND_SET_STRING_MACROS: {
-    const command_in_string_macros_t *p = &in->string_macros;
-    const uint32_t string_macros_size =
-        sizeof(eeconfig->profiles[p->profile].string_macros);
+  case COMMAND_SET_MACROS: {
+    const command_in_macros_t *p = &in->macros;
+    const uint32_t macros_size =
+        sizeof(eeconfig->profiles[p->profile].macros);
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
-    COMMAND_VERIFY(p->offset < string_macros_size);
+    COMMAND_VERIFY(p->offset < macros_size);
     COMMAND_VERIFY(p->len <= M_ARRAY_SIZE(p->data) &&
-                   p->len <= string_macros_size - p->offset);
+                   p->len <= macros_size - p->offset);
 
     if (p->profile == eeconfig->current_profile)
       advanced_key_clear();
-    const uint32_t string_macros_offset =
+    const uint32_t macros_offset =
         offsetof(eeconfig_t, profiles) +
         p->profile * sizeof(eeconfig_profile_t) +
-        offsetof(eeconfig_profile_t, string_macros) + p->offset;
+        offsetof(eeconfig_profile_t, macros) + p->offset;
     success = wear_leveling_write(
-        string_macros_offset, p->data, sizeof(uint8_t) * p->len);
+        macros_offset, p->data, sizeof(uint8_t) * p->len);
     break;
   }
   case COMMAND_GET_TICK_RATE: {
