@@ -244,10 +244,6 @@ static void advanced_key_macro_release_pressed(uint8_t ak_index,
 static void advanced_key_macro_stop(uint8_t ak_index) {
   ak_state_macro_t *state = &ak_states[ak_index].macro;
 
-  if (state->is_tapping) {
-    layout_unregister(state->key, state->tap_keycode);
-    state->is_tapping = false;
-  }
   advanced_key_macro_release_pressed(ak_index, state->key);
   memset(state, 0, sizeof(*state));
 }
@@ -257,7 +253,18 @@ static bool advanced_key_macro_validate(const macro_t *macro) {
          macro->first_node < MACRO_NODE_COUNT;
 }
 
+static uint16_t advanced_key_macro_deferred_tap_ticks(void) {
+  // Deferred actions count matrix scans, but macro progression is ticked in
+  // milliseconds. Scale the two tap phases by the macro delay unit and keep a
+  // small cushion for the release report boundary.
+  return M_MAX(2, M_DIV_CEIL((uint16_t)CURRENT_PROFILE.tick_rate * 2,
+                             MACRO_DELAY_UNIT_MS) +
+                      1);
+}
+
 static void advanced_key_macro_run_step(uint8_t ak_index) {
+  static deferred_action_t deferred_action = {0};
+
   ak_state_macro_t *state = &ak_states[ak_index].macro;
 
   if (state->current_node == MACRO_NODE_NONE ||
@@ -284,9 +291,16 @@ static void advanced_key_macro_run_step(uint8_t ak_index) {
     break;
 
   case MACRO_ACTION_TAP:
-    layout_register(state->key, node->keycode);
-    state->tap_keycode = node->keycode;
-    state->is_tapping = node->keycode != KC_NO;
+    if (node->keycode == KC_NO)
+      break;
+
+    deferred_action = (deferred_action_t){
+        .type = DEFERRED_ACTION_TYPE_TAP,
+        .key = state->key,
+        .keycode = node->keycode,
+    };
+    if (deferred_action_push(&deferred_action))
+      state->deferred_tap_ticks = advanced_key_macro_deferred_tap_ticks();
     break;
 
   case MACRO_ACTION_RELEASE:
@@ -300,7 +314,8 @@ static void advanced_key_macro_run_step(uint8_t ak_index) {
 
   state->delay = (uint16_t)node->delay * MACRO_DELAY_UNIT_MS;
   state->since = timer_read();
-  if (state->current_node == MACRO_NODE_NONE && !state->is_tapping)
+  if (state->current_node == MACRO_NODE_NONE &&
+      state->deferred_tap_ticks == 0)
     state->is_running = false;
 }
 
@@ -427,16 +442,16 @@ void advanced_key_tick(bool has_non_tap_hold_press) {
       if (!state->macro.is_running)
         break;
 
-      if (state->macro.is_tapping) {
-        layout_unregister(state->macro.key,
-                          state->macro.tap_keycode);
-        state->macro.is_tapping = false;
+      if (state->macro.deferred_tap_ticks > 0) {
+        state->macro.deferred_tap_ticks--;
         state->macro.since = timer_read();
+        if (state->macro.deferred_tap_ticks == 0 &&
+            state->macro.current_node == MACRO_NODE_NONE)
+          state->macro.is_running = false;
+        break;
       }
 
-      if (!state->macro.is_tapping &&
-          timer_elapsed(state->macro.since) >=
-              state->macro.delay)
+      if (timer_elapsed(state->macro.since) >= state->macro.delay)
         advanced_key_macro_run_step(i);
       break;
 

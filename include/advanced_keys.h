@@ -89,16 +89,14 @@ typedef struct {
   uint32_t since;
   // Delay before the next macro step in milliseconds
   uint16_t delay;
+  // Ticks to wait for an in-progress deferred tap
+  uint16_t deferred_tap_ticks;
   // Node index of the next macro step
   macro_node_id_t current_node;
   // Number of nodes visited while running this macro
   uint16_t visited_count;
-  // Keycode to release for an in-progress tap
-  uint8_t tap_keycode;
   // Key index that triggered the macro
   uint8_t key;
-  // Whether a tap key is currently pressed
-  bool is_tapping;
   // Whether the macro is currently running
   bool is_running;
 } ak_state_macro_t;
