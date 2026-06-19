@@ -170,7 +170,7 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
   // Number of valid bytes in `data`
   uint8_t len;
-  uint8_t data[COMMAND_SET_STAGED_PROFILE_BYTES_PER_PACKET];
+  uint8_t data[COMMAND_GET_STAGED_PROFILE_BYTES_PER_PACKET];
 } command_out_staged_profile_t;
 
 // Command output buffer type

@@ -113,6 +113,8 @@ static uint8_t active_advanced_keys[NUM_KEYS];
 void layout_init(void) { layout_load_advanced_keys(); }
 
 void layout_load_advanced_keys(void) {
+  advanced_key_init();
+
   memset(advanced_key_indices, 0, sizeof(advanced_key_indices));
   for (uint32_t i = 0; i < NUM_ADVANCED_KEYS; i++) {
     const advanced_key_t *ak = &CURRENT_PROFILE.advanced_keys[i];

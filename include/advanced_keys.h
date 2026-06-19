@@ -98,6 +98,8 @@ typedef struct {
   uint16_t deferred_tap_ticks;
   // Current macro node
   macro_node_id_t current_node;
+  // Visited macro nodes
+  uint32_t visited_nodes[M_DIV_CEIL(NUM_MACRO_NODES, 32)];
   // Number of active keycodes
   uint16_t num_active_keycodes;
   // Active keycodes
