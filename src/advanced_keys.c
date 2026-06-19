@@ -236,16 +236,6 @@ static void advanced_key_toggle(const advanced_key_event_t *event) {
   }
 }
 
-static bool advanced_key_macro_is_node_visited(const ak_state_macro_t *state,
-                                               macro_node_id_t node_id) {
-  return state->visited_nodes[node_id / 32] & (UINT32_C(1) << (node_id & 31));
-}
-
-static void advanced_key_macro_set_node_visited(ak_state_macro_t *state,
-                                                macro_node_id_t node_id) {
-  state->visited_nodes[node_id / 32] |= (UINT32_C(1) << (node_id & 31));
-}
-
 static bool advanced_key_macro_add_active_keycode(ak_state_macro_t *state,
                                                   uint8_t keycode) {
   if (keycode == KC_NO)
@@ -285,15 +275,13 @@ static void advanced_key_macro_run_step(uint8_t key, uint8_t ak_index,
                                         macro_node_id_t node_id) {
   ak_state_macro_t *state = &ak_states[ak_index].macro;
 
-  if (node_id == MACRO_NODE_NONE || node_id >= NUM_MACRO_NODES ||
-      advanced_key_macro_is_node_visited(state, node_id)) {
+  if (node_id == MACRO_NODE_NONE || node_id >= NUM_MACRO_NODES) {
     state->current_node = MACRO_NODE_NONE;
     return;
   }
 
   const macro_node_t *node = &CURRENT_PROFILE.macros[node_id];
   state->current_node = node_id;
-  advanced_key_macro_set_node_visited(state, node_id);
   state->since = timer_read();
 
   switch (node->action) {
