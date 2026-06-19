@@ -65,7 +65,7 @@ typedef struct __attribute__((packed)) {
   uint8_t keymap[NUM_LAYERS][NUM_KEYS];
   actuation_t actuation_map[NUM_KEYS];
   advanced_key_t advanced_keys[NUM_ADVANCED_KEYS];
-  macro_node_t macros[MACRO_NODE_COUNT];
+  macro_node_t macros[NUM_MACRO_NODES];
   uint8_t gamepad_buttons[NUM_KEYS];
   gamepad_options_t gamepad_options;
   uint8_t tick_rate;

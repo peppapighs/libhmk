@@ -84,21 +84,24 @@ typedef struct {
 // Macro State
 //--------------------------------------------------------------------+
 
+#if !defined(MAX_MACRO_ACTIVE_KEYCODES)
+// Max number of active keycodes each macro can track. This is only used for
+// stopping the macro by releasing all active keycodes. The behavior is
+// undefined if there are more active keycodes than this value.
+#define MAX_MACRO_ACTIVE_KEYCODES 16
+#endif
+
 typedef struct {
-  // Time when the last macro step ran
+  // Time since we processed the current node
   uint32_t since;
-  // Delay before the next macro step in milliseconds
-  uint16_t delay;
   // Ticks to wait for an in-progress deferred tap
   uint16_t deferred_tap_ticks;
-  // Node index of the next macro step
+  // Current macro node
   macro_node_id_t current_node;
-  // Number of nodes visited while running this macro
-  uint16_t visited_count;
-  // Key index that triggered the macro
-  uint8_t key;
-  // Whether the macro is currently running
-  bool is_running;
+  // Number of active keycodes
+  uint16_t num_active_keycodes;
+  // Active keycodes
+  uint8_t active_keycodes[MAX_MACRO_ACTIVE_KEYCODES];
 } ak_state_macro_t;
 
 //--------------------------------------------------------------------+

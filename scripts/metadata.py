@@ -60,11 +60,7 @@ def keyboard_metadata_def():
         "numKeys": kb_json.keyboard.num_keys,
         "numAdvancedKeys": kb_json.keyboard.num_advanced_keys,
         "numDynamicKeystrokeMaxBindings": kb_json.keyboard.num_dynamic_keystroke_max_bindings,
-        "macroBufferSize": kb_json.keyboard.macro_buffer_size
-        - (kb_json.keyboard.macro_buffer_size % 5),
-        "macroNodeSize": 5,
-        "macroNodeCount": kb_json.keyboard.macro_buffer_size // 5,
-        "macroDelayUnitMs": 10,
+        "numMacroNodes": kb_json.keyboard.num_macro_nodes,
         "layout": kb_json.layout.model_dump(exclude_none=True),
         "defaultKeymaps": utils.resolve_default_keymaps(kb_json),
     }

@@ -38,7 +38,7 @@ static uint8_t in_buf[RAW_HID_EP_SIZE];
 static uint8_t out_buf[RAW_HID_EP_SIZE];
 
 #define COMMAND_STAGED_WRITE_BUFFER_SIZE                                       \
-  M_MAX(sizeof(advanced_key_t), MACRO_NODE_BUFFER_SIZE)
+  M_MAX(sizeof(advanced_key_t), sizeof(macro_node_t) * NUM_MACRO_NODES)
 
 typedef enum {
   COMMAND_STAGED_WRITE_NONE = 0,
@@ -94,9 +94,8 @@ static bool command_commit_staged_advanced_key(uint8_t profile, uint32_t offset,
   if (profile == eeconfig->current_profile)
     advanced_key_clear();
 
-  const bool success =
-      EECONFIG_WRITE_N(profiles[profile].advanced_keys[key_index],
-                       data, sizeof(advanced_key_t));
+  const bool success = EECONFIG_WRITE_N(
+      profiles[profile].advanced_keys[key_index], data, sizeof(advanced_key_t));
 
   if (profile == eeconfig->current_profile)
     layout_load_advanced_keys();
@@ -124,9 +123,9 @@ static bool command_commit_staged_macros(uint8_t profile, uint32_t offset,
   if (profile == eeconfig->current_profile)
     advanced_key_clear();
 
-  const uint32_t macros_offset =
-      offsetof(eeconfig_t, profiles) + profile * sizeof(eeconfig_profile_t) +
-      offsetof(eeconfig_profile_t, macros);
+  const uint32_t macros_offset = offsetof(eeconfig_t, profiles) +
+                                 profile * sizeof(eeconfig_profile_t) +
+                                 offsetof(eeconfig_profile_t, macros);
   return wear_leveling_write(macros_offset, data, len);
 }
 
@@ -158,11 +157,9 @@ static bool command_stage_write(uint8_t type, uint8_t profile, uint32_t offset,
 
   for (uint32_t i = 0; i < len;) {
     const uint32_t current_item_offset = staged_write_state.offset % item_size;
-    const uint32_t write_len =
-        M_MIN(len - i, item_size - current_item_offset);
+    const uint32_t write_len = M_MIN(len - i, item_size - current_item_offset);
 
-    memcpy(staged_write_state.data + current_item_offset, data + i,
-           write_len);
+    memcpy(staged_write_state.data + current_item_offset, data + i, write_len);
 
     if (len - i >= item_size - current_item_offset) {
       const uint32_t item_offset =
@@ -188,20 +185,20 @@ fail:
 }
 
 static bool
-command_stage_advanced_key_write(const command_in_advanced_keys_t *p) {
+command_stage_advanced_key_write(const command_in_staged_profile_t *p) {
   return command_stage_write(
-      COMMAND_STAGED_WRITE_ADVANCED_KEY, p->profile, p->offset, p->data,
-      p->len, sizeof(eeconfig->profiles[p->profile].advanced_keys),
+      COMMAND_STAGED_WRITE_ADVANCED_KEY, p->profile, p->offset, p->data, p->len,
+      sizeof(eeconfig->profiles[p->profile].advanced_keys),
       sizeof(advanced_key_t), M_ARRAY_SIZE(p->data),
       command_commit_staged_advanced_key);
 }
 
-static bool command_stage_macro_write(const command_in_macros_t *p) {
+static bool command_stage_macro_write(const command_in_staged_profile_t *p) {
   const uint32_t macros_size = sizeof(eeconfig->profiles[p->profile].macros);
 
-  return command_stage_write(COMMAND_STAGED_WRITE_MACROS, p->profile,
-                             p->offset, p->data, p->len, macros_size,
-                             macros_size, M_ARRAY_SIZE(p->data),
+  return command_stage_write(COMMAND_STAGED_WRITE_MACROS, p->profile, p->offset,
+                             p->data, p->len, macros_size, macros_size,
+                             M_ARRAY_SIZE(p->data),
                              command_commit_staged_macros);
 }
 
@@ -405,23 +402,23 @@ static void command_process(void) {
     break;
   }
   case COMMAND_GET_ADVANCED_KEYS: {
-    const command_in_advanced_keys_t *p = &in->advanced_keys;
+    const command_in_staged_profile_t *p = &in->staged_profile;
     const uint32_t advanced_keys_size =
         sizeof(eeconfig->profiles[p->profile].advanced_keys);
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
     COMMAND_VERIFY(p->offset < advanced_keys_size);
 
-    out->advanced_keys.len = M_MIN(M_ARRAY_SIZE(out->advanced_keys.data),
-                                   advanced_keys_size - p->offset);
-    memcpy(out->advanced_keys.data,
+    out->staged_profile.len = M_MIN(M_ARRAY_SIZE(out->staged_profile.data),
+                                    advanced_keys_size - p->offset);
+    memcpy(out->staged_profile.data,
            (const uint8_t *)eeconfig->profiles[p->profile].advanced_keys +
                p->offset,
-           out->advanced_keys.len);
+           out->staged_profile.len);
     break;
   }
   case COMMAND_SET_ADVANCED_KEYS: {
-    const command_in_advanced_keys_t *p = &in->advanced_keys;
+    const command_in_staged_profile_t *p = &in->staged_profile;
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
 
@@ -429,23 +426,21 @@ static void command_process(void) {
     break;
   }
   case COMMAND_GET_MACROS: {
-    const command_in_macros_t *p = &in->macros;
-    const uint32_t macros_size =
-        sizeof(eeconfig->profiles[p->profile].macros);
+    const command_in_staged_profile_t *p = &in->staged_profile;
+    const uint32_t macros_size = sizeof(eeconfig->profiles[p->profile].macros);
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
     COMMAND_VERIFY(p->offset < macros_size);
 
-    out->macros.len = M_MIN(M_ARRAY_SIZE(out->macros.data),
-                                   macros_size - p->offset);
-    memcpy(out->macros.data,
-           (const uint8_t *)eeconfig->profiles[p->profile].macros +
-               p->offset,
-           out->macros.len);
+    out->staged_profile.len =
+        M_MIN(M_ARRAY_SIZE(out->staged_profile.data), macros_size - p->offset);
+    memcpy(out->staged_profile.data,
+           (const uint8_t *)eeconfig->profiles[p->profile].macros + p->offset,
+           out->staged_profile.len);
     break;
   }
   case COMMAND_SET_MACROS: {
-    const command_in_macros_t *p = &in->macros;
+    const command_in_staged_profile_t *p = &in->staged_profile;
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
 

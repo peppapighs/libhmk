@@ -63,12 +63,10 @@ typedef enum {
 // Input Report Structures
 //---------------------------------------------------------------------+
 
-// Number of advanced key data bytes that fit in a single raw HID packet after
-// the command header fields.
-#define COMMAND_SET_ADVANCED_KEYS_BYTES_PER_PACKET 59
-#define COMMAND_GET_ADVANCED_KEYS_BYTES_PER_PACKET 62
-#define COMMAND_SET_MACROS_BYTES_PER_PACKET 59
-#define COMMAND_GET_MACROS_BYTES_PER_PACKET 62
+// Number of per-profile staged protocol data bytes that fit in a single raw HID
+// packet after the command header fields.
+#define COMMAND_SET_STAGED_PROFILE_BYTES_PER_PACKET 59
+#define COMMAND_GET_STAGED_PROFILE_BYTES_PER_PACKET 62
 
 typedef struct __attribute__((packed)) {
   uint8_t offset;
@@ -108,12 +106,12 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
   uint8_t profile;
-  // Byte offset within `advanced_keys`.
+  // Byte offset within the destination buffer.
   uint16_t offset;
   // Number of bytes to write from `data`
   uint8_t len;
-  uint8_t data[COMMAND_SET_ADVANCED_KEYS_BYTES_PER_PACKET];
-} command_in_advanced_keys_t;
+  uint8_t data[COMMAND_SET_STAGED_PROFILE_BYTES_PER_PACKET];
+} command_in_staged_profile_t;
 
 typedef struct __attribute__((packed)) {
   uint8_t profile;
@@ -132,15 +130,6 @@ typedef struct __attribute__((packed)) {
   gamepad_options_t gamepad_options;
 } command_in_gamepad_options_t;
 
-typedef struct __attribute__((packed)) {
-  uint8_t profile;
-  // Byte offset within `macros`.
-  uint16_t offset;
-  // Number of bytes to write from `data`
-  uint8_t len;
-  uint8_t data[COMMAND_SET_MACROS_BYTES_PER_PACKET];
-} command_in_macros_t;
-
 // Command input buffer type
 typedef struct __attribute__((packed)) {
   uint8_t command_id;
@@ -154,11 +143,10 @@ typedef struct __attribute__((packed)) {
 
     command_in_keymap_t keymap;
     command_in_actuation_map_t actuation_map;
-    command_in_advanced_keys_t advanced_keys;
     command_in_tick_rate_t tick_rate;
     command_in_gamepad_buttons_t gamepad_buttons;
     command_in_gamepad_options_t gamepad_options;
-    command_in_macros_t macros;
+    command_in_staged_profile_t staged_profile;
   };
 } command_in_buffer_t;
 
@@ -182,14 +170,8 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
   // Number of valid bytes in `data`
   uint8_t len;
-  uint8_t data[COMMAND_GET_ADVANCED_KEYS_BYTES_PER_PACKET];
-} command_out_advanced_keys_t;
-
-typedef struct __attribute__((packed)) {
-  // Number of valid bytes in `data`
-  uint8_t len;
-  uint8_t data[COMMAND_GET_MACROS_BYTES_PER_PACKET];
-} command_out_macros_t;
+  uint8_t data[COMMAND_SET_STAGED_PROFILE_BYTES_PER_PACKET];
+} command_out_staged_profile_t;
 
 // Command output buffer type
 typedef struct __attribute__((packed)) {
@@ -214,29 +196,19 @@ typedef struct __attribute__((packed)) {
     uint8_t keymap[63];
     // For `COMMAND_GET_ACTUATION_MAP`
     actuation_t actuation_map[15];
-    // For `COMMAND_GET_ADVANCED_KEYS`
-    command_out_advanced_keys_t advanced_keys;
     // For `COMMAND_GET_TICK_RATE`
     uint8_t tick_rate;
     // For `COMMAND_GET_GAMEPAD_BUTTONS`
     uint8_t gamepad_buttons[63];
     // For `COMMAND_GET_GAMEPAD_OPTIONS`
     gamepad_options_t gamepad_options;
-    // For `COMMAND_GET_MACROS`
-    command_out_macros_t macros;
+    // For `COMMAND_GET_ADVANCED_KEYS` and `COMMAND_GET_MACROS`
+    command_out_staged_profile_t staged_profile;
   };
 } command_out_buffer_t;
 
 _Static_assert(sizeof(command_out_buffer_t) <= RAW_HID_EP_SIZE,
                "Invalid command output buffer size");
-_Static_assert(sizeof(command_in_advanced_keys_t) == RAW_HID_EP_SIZE - 1,
-               "Invalid advanced key input packet size");
-_Static_assert(sizeof(command_out_advanced_keys_t) == RAW_HID_EP_SIZE - 1,
-               "Invalid advanced key output packet size");
-_Static_assert(sizeof(command_in_macros_t) == RAW_HID_EP_SIZE - 1,
-               "Invalid macro input packet size");
-_Static_assert(sizeof(command_out_macros_t) == RAW_HID_EP_SIZE - 1,
-               "Invalid macro output packet size");
 
 //---------------------------------------------------------------------+
 // Command API

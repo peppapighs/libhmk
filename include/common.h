@@ -97,13 +97,12 @@ _Static_assert(4 <= NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS &&
                    NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS <= 64,
                "NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS must be between 4 and 64");
 
-#if !defined(MACRO_BUFFER_SIZE)
-#error "MACRO_BUFFER_SIZE is not defined"
+#if !defined(NUM_MACRO_NODES)
+#error "NUM_MACRO_NODES is not defined"
 #endif
 
-_Static_assert(5 <= MACRO_BUFFER_SIZE &&
-                   MACRO_BUFFER_SIZE <= 4096,
-               "MACRO_BUFFER_SIZE must be between 5 and 4096");
+_Static_assert(1 <= NUM_MACRO_NODES && NUM_MACRO_NODES <= 255,
+               "NUM_MACRO_NODES must be between 1 and 255");
 
 //--------------------------------------------------------------------+
 // Keyboard Types
@@ -207,33 +206,25 @@ typedef enum {
   MACRO_ACTION_COUNT,
 } macro_action_t;
 
-typedef uint16_t macro_node_id_t;
+typedef uint8_t macro_node_id_t;
 
-#define MACRO_NODE_NONE UINT16_MAX
+#define MACRO_NODE_NONE UINT8_MAX
 
-// Macro node. `delay` is the time before the next node in 10 ms units.
 typedef struct __attribute__((packed)) {
   uint8_t keycode;
-  uint8_t action;
-  uint8_t delay;
+  uint8_t action : 3;
+  // Delay in milliseconds
+  uint16_t delay : 13;
   macro_node_id_t next;
 } macro_node_t;
 
-_Static_assert(sizeof(macro_node_t) == 5,
-               "Invalid macro_node_t size");
-
-#define MACRO_NODE_COUNT                                                \
-  (MACRO_BUFFER_SIZE / sizeof(macro_node_t))
-#define MACRO_NODE_BUFFER_SIZE                                          \
-  (MACRO_NODE_COUNT * sizeof(macro_node_t))
-
-_Static_assert(MACRO_NODE_COUNT > 0,
-               "MACRO_BUFFER_SIZE must fit at least one macro node");
+_Static_assert(MACRO_ACTION_COUNT < 8,
+               "MACRO_ACTION_COUNT must be less than 8");
 
 // Macro configuration
 typedef struct __attribute__((packed)) {
-  // First node in the profile macro node buffer.
-  macro_node_id_t first_node;
+  // The first macro node in the linked list
+  macro_node_id_t head;
 } macro_t;
 
 // Advanced key configuration

@@ -161,8 +161,8 @@ void hid_keycode_remove(uint8_t keycode) {
   case KEYBOARD_KEYCODE_RANGE:
     for (uint32_t i = 0; i < num_6kro_keys; i++) {
       if (kb_report.keycodes[i] == hid_code) {
-        for (uint32_t j = i; j < 5; j++)
-          kb_report.keycodes[j] = kb_report.keycodes[j + 1];
+        memmove(kb_report.keycodes + i, kb_report.keycodes + i + 1,
+                sizeof(uint8_t) * (num_6kro_keys - i - 1));
         num_6kro_keys--;
         break;
       }
