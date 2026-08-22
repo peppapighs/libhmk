@@ -22,7 +22,7 @@
 #include "xinput.h"
 
 // Device descriptor
-static const tusb_desc_device_t desc_device = {
+static tusb_desc_device_t desc_device = {
     .bLength = sizeof(tusb_desc_device_t),
     .bDescriptorType = TUSB_DESC_DEVICE,
     .bcdUSB = USB_BCD_VERSION,
@@ -104,16 +104,22 @@ static const uint8_t desc_raw_hid_report[] = {
 
 };
 
-#define CONFIG_TOTAL_LEN                                                       \
-  (TUD_CONFIG_DESC_LEN + 2 * TUD_HID_DESC_LEN + TUD_HID_INOUT_DESC_LEN +       \
-   XINPUT_DESC_LEN)
+// Standard HID gamepad report used as the portable alternative to XInput.
+static const uint8_t desc_gamepad_report[] = {TUD_HID_REPORT_DESC_GAMEPAD()};
+
+#define CONFIG_BASE_LEN                                                        \
+  (TUD_CONFIG_DESC_LEN + 2 * TUD_HID_DESC_LEN + TUD_HID_INOUT_DESC_LEN)
+#define CONFIG_TOTAL_LEN (CONFIG_BASE_LEN + XINPUT_DESC_LEN)
+
+_Static_assert(XINPUT_DESC_LEN >= TUD_HID_DESC_LEN,
+               "configuration buffer must fit either gamepad descriptor");
 
 // Configuration descriptor
 static uint8_t desc_configuration[CONFIG_TOTAL_LEN];
 
 #if defined(BOARD_USB_HS)
 // Device qualifier descriptor for USB HS
-static const tusb_desc_device_qualifier_t desc_device_qualifier = {
+static tusb_desc_device_qualifier_t desc_device_qualifier = {
     .bLength = sizeof(tusb_desc_device_qualifier_t),
     .bDescriptorType = TUSB_DESC_DEVICE_QUALIFIER,
     .bcdUSB = USB_BCD_VERSION,
@@ -237,25 +243,31 @@ _Static_assert(M_ARRAY_SIZE(desc_ms_os_20) == MS_OS_20_DESC_LEN,
  *
  * @return None
  */
-static void generate_desc_configuration(uint8_t *dst) {
-  uint8_t num_interfaces = USB_ITF_COUNT;
-  uint16_t total_length = CONFIG_TOTAL_LEN;
-  if (!eeconfig->options.xinput_enabled) {
-    // If XInput is not enabled, subtract the XInput descriptor length
-    // from the total configuration length.
-    num_interfaces--;
-    total_length -= XINPUT_DESC_LEN;
-  }
+static void generate_desc_configuration(uint8_t *dst, tusb_speed_t speed) {
+  const gamepad_api_t gamepad_api =
+      eeconfig_get_gamepad_api(&eeconfig->options);
+  const uint16_t gamepad_desc_len = gamepad_api == GAMEPAD_API_XINPUT
+                                        ? XINPUT_DESC_LEN
+                                    : gamepad_api == GAMEPAD_API_HID
+                                        ? TUD_HID_DESC_LEN
+                                        : 0u;
+  const uint8_t num_interfaces =
+      gamepad_api == GAMEPAD_API_DISABLED ? USB_ITF_COUNT - 1u
+                                          : USB_ITF_COUNT;
+  const uint16_t total_length = CONFIG_BASE_LEN + gamepad_desc_len;
 
   uint8_t polling_interval = 1;
 #if defined(BOARD_USB_HS)
-  if (!eeconfig->options.high_polling_rate_enabled)
-    // If high polling rate is not enabled, use 1kHz polling rate = 8 frames for
-    // USB HS instead.
-    polling_interval = 8;
+  if (speed == TUSB_SPEED_HIGH &&
+      !eeconfig->options.high_polling_rate_enabled)
+    /* At high speed bInterval is exponential: 4 means 2^(4-1) = 8
+     * microframes, i.e. 1 ms. A raw value of 8 would mean 16 ms (62.5 Hz). */
+    polling_interval = 4;
+#else
+  (void)speed;
 #endif
 
-  const uint8_t src[] = {
+  const uint8_t base[] = {
       // Configuration descriptor header. Request maximum 500mA for the device
       TUD_CONFIG_DESCRIPTOR(1, num_interfaces, 0, total_length,
                             TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 500),
@@ -272,18 +284,42 @@ static void generate_desc_configuration(uint8_t *dst) {
                                sizeof(desc_raw_hid_report), EP_OUT_ADDR_RAW_HID,
                                EP_IN_ADDR_RAW_HID, RAW_HID_EP_SIZE,
                                polling_interval),
-      // XInput interface descriptor
-      XINPUT_DESCRIPTOR(USB_ITF_XINPUT, 0, EP_OUT_ADDR_XINPUT,
-                        EP_IN_ADDR_XINPUT, polling_interval),
   };
 
-  _Static_assert(sizeof(src) == CONFIG_TOTAL_LEN,
-                 "Invalid configuration descriptor size");
+  _Static_assert(sizeof(base) == CONFIG_BASE_LEN,
+                 "Invalid base configuration descriptor size");
 
-  memcpy(dst, src, sizeof(src));
+  memset(dst, 0, CONFIG_TOTAL_LEN);
+  memcpy(dst, base, sizeof(base));
+
+  if (gamepad_api == GAMEPAD_API_XINPUT) {
+    const uint8_t xinput[] = {
+        XINPUT_DESCRIPTOR(USB_ITF_GAMEPAD, 0, EP_OUT_ADDR_XINPUT,
+                          EP_IN_ADDR_GAMEPAD, polling_interval),
+    };
+    _Static_assert(sizeof(xinput) == XINPUT_DESC_LEN,
+                   "Invalid XInput descriptor size");
+    memcpy(dst + sizeof(base), xinput, sizeof(xinput));
+  } else if (gamepad_api == GAMEPAD_API_HID) {
+    const uint8_t hid_gamepad[] = {
+        TUD_HID_DESCRIPTOR(USB_ITF_GAMEPAD, 0, HID_ITF_PROTOCOL_NONE,
+                           sizeof(desc_gamepad_report), EP_IN_ADDR_GAMEPAD,
+                           CFG_TUD_HID_EP_BUFSIZE, polling_interval),
+    };
+    _Static_assert(sizeof(hid_gamepad) == TUD_HID_DESC_LEN,
+                   "Invalid HID gamepad descriptor size");
+    memcpy(dst + sizeof(base), hid_gamepad, sizeof(hid_gamepad));
+  }
 }
 
 const uint8_t *tud_descriptor_device_cb(void) {
+  /* Microsoft OS 2.0 discovery requires USB 2.1 for XInput. Standard HID and
+   * keyboard-only configurations advertise USB 2.0 and expose no BOS, so a
+   * host can never bind the XUSB compatible ID to the HID gamepad interface. */
+  desc_device.bcdUSB =
+      eeconfig_get_gamepad_api(&eeconfig->options) == GAMEPAD_API_XINPUT
+          ? USB_BCD_VERSION
+          : 0x0200;
   return (const uint8_t *)&desc_device;
 }
 
@@ -298,6 +334,11 @@ const uint8_t *tud_hid_descriptor_report_cb(uint8_t instance) {
   case USB_ITF_RAW_HID:
     return desc_raw_hid_report;
 
+  case USB_ITF_GAMEPAD:
+    return eeconfig_get_gamepad_api(&eeconfig->options) == GAMEPAD_API_HID
+               ? desc_gamepad_report
+               : NULL;
+
   default:
     // Invalid interface, should be unreachable
     return NULL;
@@ -306,17 +347,27 @@ const uint8_t *tud_hid_descriptor_report_cb(uint8_t instance) {
 
 const uint8_t *tud_descriptor_configuration_cb(uint8_t index) {
   // We only have one configuration so we don't need to check the index
-  generate_desc_configuration(desc_configuration);
+  generate_desc_configuration(desc_configuration, tud_speed_get());
   return desc_configuration;
 }
 
 #if defined(BOARD_USB_HS)
 const uint8_t *tud_descriptor_device_qualifier_cb(void) {
+  /* The qualifier describes the same device at the other bus speed and must
+   * advertise the same USB revision as the active device descriptor. Compute
+   * it directly so correctness does not depend on callback ordering. */
+  desc_device_qualifier.bcdUSB =
+      eeconfig_get_gamepad_api(&eeconfig->options) == GAMEPAD_API_XINPUT
+          ? USB_BCD_VERSION
+          : 0x0200;
   return (const uint8_t *)&desc_device_qualifier;
 }
 
 const uint8_t *tud_descriptor_other_speed_configuration_cb(uint8_t index) {
-  generate_desc_configuration(desc_other_speed_config);
+  const tusb_speed_t other_speed = tud_speed_get() == TUSB_SPEED_HIGH
+                                       ? TUSB_SPEED_FULL
+                                       : TUSB_SPEED_HIGH;
+  generate_desc_configuration(desc_other_speed_config, other_speed);
   desc_other_speed_config[1] = TUSB_DESC_OTHER_SPEED_CONFIG;
 
   return desc_other_speed_config;
@@ -368,16 +419,25 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
   return desc_str;
 }
 
-const uint8_t *tud_descriptor_bos_cb(void) { return desc_bos; }
+const uint8_t *tud_descriptor_bos_cb(void) {
+  return eeconfig_get_gamepad_api(&eeconfig->options) == GAMEPAD_API_XINPUT
+             ? desc_bos
+             : NULL;
+}
 
 bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
                                 const tusb_control_request_t *request) {
+  if (eeconfig_get_gamepad_api(&eeconfig->options) != GAMEPAD_API_XINPUT)
+    return false;
+
   if (stage != CONTROL_STAGE_SETUP)
     // Nothing to do for other stages
     return true;
 
-  if (request->bmRequestType_bit.type == TUSB_REQ_TYPE_VENDOR &&
-      request->bRequest == MS_OS_20_VENDOR_CODE) {
+  if (request->bmRequestType_bit.direction == TUSB_DIR_IN &&
+      request->bmRequestType_bit.type == TUSB_REQ_TYPE_VENDOR &&
+      request->bmRequestType_bit.recipient == TUSB_REQ_RCPT_DEVICE &&
+      request->bRequest == MS_OS_20_VENDOR_CODE && request->wValue == 0u) {
     switch (request->wIndex) {
     case 0x07:
       // Microsoft OS 2.0 descriptor request

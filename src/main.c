@@ -22,6 +22,9 @@
 #include "hid.h"
 #include "layout.h"
 #include "matrix.h"
+#if defined(RGB_ENABLE)
+#include "rgb.h"
+#endif
 #include "tusb.h"
 #include "wear_leveling.h"
 #include "xinput.h"
@@ -46,6 +49,10 @@ int main(void) {
   xinput_init();
   layout_init();
   command_init();
+#if defined(RGB_ENABLE)
+  if (!rgb_init())
+    board_error_handler();
+#endif
 
   tud_init(BOARD_TUD_RHPORT);
 
@@ -57,6 +64,11 @@ int main(void) {
     matrix_scan();
     layout_task();
     xinput_task();
+#if defined(RGB_ENABLE)
+    /* RGB copies/submits at most one complete frame and runs after the input
+     * path, so a host stream can never delay an analog scan. */
+    rgb_task();
+#endif
   }
 
   return 0;

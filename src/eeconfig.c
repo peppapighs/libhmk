@@ -23,6 +23,7 @@ const eeconfig_t *eeconfig;
 // Default configuration values
 static eeconfig_options_t default_options = DEFAULT_OPTIONS;
 static eeconfig_calibration_t default_calibration = DEFAULT_CALIBRATION;
+static const eeconfig_rgb_t default_rgb = DEFAULT_RGB;
 static const uint8_t default_keymaps[NUM_PROFILES][NUM_LAYERS][NUM_KEYS] =
     DEFAULT_KEYMAPS;
 static const macro_node_t default_macro = {
@@ -83,6 +84,7 @@ bool eeconfig_reset(void) {
   status &= EECONFIG_WRITE(options, &default_options);
   EECONFIG_WRITE_LOCAL(current_profile, 0);
   EECONFIG_WRITE_LOCAL(last_non_default_profile, M_MIN(1, NUM_PROFILES - 1));
+  status &= EECONFIG_WRITE(rgb, &default_rgb);
   for (uint32_t i = 0; i < NUM_PROFILES; i++)
     status &= eeconfig_write_default_profile(i);
   EECONFIG_WRITE_LOCAL(magic_end, EECONFIG_MAGIC_END);

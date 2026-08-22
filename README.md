@@ -26,11 +26,14 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
 - [x] **Web Configurator**: Configure the firmware using [hmkconf](https://github.com/peppapighs/hmkconf) without needing to recompile the firmware.
 - [x] **Tick Rate**: Customizable tick rate for Tap-Hold and Dynamic Keystroke.
 - [x] **8kHz Polling Rate**: Support for 8kHz polling rate on some microcontrollers (e.g., AT32F405xx).
-- [x] **Gamepad**: Support for XInput gamepad mode, allowing the keyboard to be used as a game controller.
+- [x] **Gamepad**: Selectable XInput or standards-based HID gamepad output.
+- [x] **RGB Lighting**: Optional non-blocking backend, basic effects, brightness/color persistence and host-controlled per-LED frames.
 
 ## Limitations
 
-- **RGB Lighting**: The firmware does not support RGB lighting.
+- **RGB Backends**: Addressable lighting is opt-in and each MCU family must
+  provide a non-blocking implementation of `include/hardware/rgb_api.h`. The
+  first backend supports WS2812 LEDs on STM32F723 TIM2 channel 1.
 
 ## Getting Started
 
@@ -58,6 +61,38 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
    - `firmware.elf`: The ELF firmware file
 
 6. Flash the firmware to your keyboard using your preferred method (e.g., DFU, ISP). If your keyboard has a DFU bootloader, you can set `upload_protocol = dfu` in `platformio.ini` and use the command `pio run --target upload` or the PlatformIO IDE's "Upload" option while the keyboard is in DFU mode. If your browser supports WebUSB, you can also use [WebUSB DFU](https://devanlai.github.io/webdfu/dfu-util/) (Recommended method).
+
+### RGB lighting
+
+Add an `rgb` object to `keyboard.json` to opt in. It defines the LED count,
+data pin, backend, default brightness and default color. Non-RGB keyboards keep
+the same source path and do not allocate frame buffers or schedule an RGB task.
+
+The portable core provides static, breathing, rainbow, rainbow-wave and live
+effects. Live mode accepts atomic 60-byte RAW HID chunks: a new frame is shown
+only after all chunks arrive, and live frames are never written to flash. The
+wire protocol is documented by the command IDs in `include/commands.h`; hosts
+must first negotiate `COMMAND_GET_RGB_CAPABILITIES` (`0x7F`).
+
+`LED_FILL` changes the persistent base color used by static and breathing
+effects; rainbow effects keep their generated colors. Combined with the static
+effect it produces an arbitrary persistent solid color. Only arbitrary per-LED
+frames require live mode.
+
+Backends must copy a submitted logical RGB frame and return immediately. DMA or
+another asynchronous peripheral mechanism should perform the physical transfer
+so lighting cannot stall matrix processing.
+
+### Gamepad API
+
+The two low bits in `eeconfig_options_t` select one mutually exclusive gamepad
+API: legacy XInput or a standard TinyUSB HID gamepad. HID is the portable choice
+for operating systems that do not provide the XInput driver. Changing the API
+changes USB descriptors and therefore takes effect after USB re-enumeration or
+a reboot. Existing configurations remain compatible because HID uses a formerly
+reserved option bit and XInput keeps priority if malformed legacy data sets both.
+The v1.6 migration clears that bit's historical unused value, so upgrading an
+existing device cannot enable HID accidentally.
 
 ## Development
 

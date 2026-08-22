@@ -152,5 +152,20 @@ if kb_json.actuation is not None:
     if actuation.actuation_point is not None:
         build_flags.define("ACTUATION_POINT", actuation.actuation_point)
 
+# Optional RGB matrix. The core stays out of non-RGB builds and the backend is
+# selected explicitly so existing libhmk keyboards remain unchanged.
+if kb_json.rgb is not None:
+    rgb = kb_json.rgb
+    ports, pin_nums = driver.metadata.adc.to_gpio_array([rgb.data_pin])
+    build_flags.define("RGB_ENABLE")
+    build_flags.define("RGB_LED_COUNT", rgb.num_leds)
+    build_flags.define("RGB_DATA_GPIO_PORT", ports[0])
+    build_flags.define("RGB_DATA_GPIO_PIN", pin_nums[0])
+    build_flags.define("RGB_DEFAULT_BRIGHTNESS", rgb.default_brightness)
+    build_flags.define("RGB_DEFAULT_R", rgb.default_color[0])
+    build_flags.define("RGB_DEFAULT_G", rgb.default_color[1])
+    build_flags.define("RGB_DEFAULT_B", rgb.default_color[2])
+    build_flags.define(f"RGB_BACKEND_{rgb.backend.upper()}")
+
 # Add source build flags
 env.Append(BUILD_FLAGS=build_flags.get_flags())

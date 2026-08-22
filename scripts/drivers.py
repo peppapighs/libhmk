@@ -191,6 +191,67 @@ STM32F446XX = Driver(
     ),
 )
 
+STM32F723XX = Driver(
+    platformio=PlatformIO(
+        # PlatformIO's maintained F723 board definition supplies the correct
+        # Cortex-M7 startup/HAL package. The project linker still constrains the
+        # image and wear-leveling area to the KBHE VET6's 512 KiB flash.
+        board="disco_f723ie",
+        # The existing generic linker layout is architecture-independent and
+        # conservatively uses only the first 128 KiB of the F723's SRAM.
+        ldscript="stm32f446retx.ld",
+        framework="stm32cube",
+        platform="ststm32@19.7.1",
+    ),
+    tinyusb=TinyUSB(mcu="stm32f7"),
+    metadata=Metadata(
+        bootloader=Bootloader(
+            address=0x1FF00000,
+            magic=0xDEADBEEF,
+        ),
+        flash=Flash(
+            sector_sizes=NonUniformSectors(
+                sizes=[
+                    16 * 1024,
+                    16 * 1024,
+                    16 * 1024,
+                    16 * 1024,
+                    64 * 1024,
+                    128 * 1024,
+                    128 * 1024,
+                    128 * 1024,
+                ]
+            ),
+            empty_value=0xFFFFFFFF,
+        ),
+        adc=ADC(
+            max_resolution=12,
+            input_pins=[
+                "A0",
+                "A1",
+                "A2",
+                "A3",
+                "A4",
+                "A5",
+                "A6",
+                "A7",
+                "B0",
+                "B1",
+                "C0",
+                "C1",
+                "C2",
+                "C3",
+                "C4",
+                "C5",
+            ],
+            to_gpio_array=lambda pins: (
+                [f"GPIO{pin[0]}" for pin in pins],
+                [f"GPIO_PIN_{pin[1:]}" for pin in pins],
+            ),
+        ),
+    ),
+)
+
 AT32F405XX = Driver(
     platformio=PlatformIO(
         board="genericAT32F405RCT7",

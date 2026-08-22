@@ -13,6 +13,10 @@
 
 from enum import Enum
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveFloat, PositiveInt
+from typing import Annotated
+
+
+RGBComponent = Annotated[int, Field(ge=0, le=255)]
 
 
 class KeyboardUSBPort(str, Enum):
@@ -118,6 +122,17 @@ class KeyboardActuation(BaseModel):
     actuation_point: int = Field(ge=0, le=255)
 
 
+class KeyboardRGB(BaseModel):
+    # Number of addressable RGB LEDs. The bridge protocol encodes this in one byte.
+    num_leds: int = Field(ge=1, le=255)
+    # GPIO pin used by the board-specific non-blocking backend.
+    data_pin: str = Field(pattern=r"^A(?:0|5|15)$")
+    # Currently supported by the STM32F723 driver used by KBHE.
+    backend: str = Field(pattern=r"^ws2812_tim2_ch1$")
+    default_brightness: int = Field(ge=0, le=255, default=50)
+    default_color: tuple[RGBComponent, RGBComponent, RGBComponent] = (255, 255, 255)
+
+
 # keyboard.json Schema
 class Keyboard(BaseModel):
     name: str
@@ -135,3 +150,4 @@ class Keyboard(BaseModel):
     # Default keymaps for each profile. If not specified, the default keymap will be used for all profiles.
     keymaps: list[list[list[str]]] | None = None
     actuation: KeyboardActuation | None = None
+    rgb: KeyboardRGB | None = None

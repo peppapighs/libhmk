@@ -16,7 +16,7 @@ import json
 import os
 import utils
 from schema.keyboard import KeyboardUSBPort
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid5
 
 METADATA_TEMPLATE = """#pragma once
 
@@ -41,7 +41,11 @@ driver = utils.get_driver(keyboard)
 
 
 def ms_os_20_guid_def():
-    uuid = uuid4().hex.upper()
+    identity = (
+        f"https://github.com/peppapighs/libhmk/"
+        f"{kb_json.usb.vid}/{kb_json.usb.pid}/xinput"
+    )
+    uuid = uuid5(NAMESPACE_URL, identity).hex.upper()
     guid = f"{{{uuid[:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:]}}}"
     guid_array = [f"U16_TO_U8S_LE('{x}')" for x in guid] + ["U16_TO_U8S_LE('\\0')"] * 2
 
@@ -61,22 +65,40 @@ def keyboard_metadata_def():
         "numAdvancedKeys": kb_json.keyboard.num_advanced_keys,
         "numDynamicKeystrokeMaxBindings": kb_json.keyboard.num_dynamic_keystroke_max_bindings,
         "numMacroNodes": kb_json.keyboard.num_macro_nodes,
+        "gamepadApis": ["xinput", "hid"],
         "layout": kb_json.layout.model_dump(exclude_none=True),
         "defaultKeymaps": utils.resolve_default_keymaps(kb_json),
+        "rgb": (
+            {
+                "numLeds": kb_json.rgb.num_leds,
+                "protocolMajor": 1,
+                "protocolMinor": 0,
+                "effects": [0, 1, 2, 3, 7],
+            }
+            if kb_json.rgb is not None
+            else None
+        ),
     }
 
     uncompressed = json.dumps(metadata).encode("utf-8")
-    compressed = gzip.compress(uncompressed)
+    compressed = gzip.compress(uncompressed, mtime=0)
     print(f"Uncompressed metadata size: {len(uncompressed)} bytes")
     print(f"Compressed metadata size: {len(compressed)} bytes")
 
     return utils.to_slice_def("KEYBOARD_METADATA", compressed)
 
 
-with open(os.path.join("include", "metadata.h"), "w") as f:
-    f.write(
-        METADATA_TEMPLATE.format(
-            ms_os_20_guid=ms_os_20_guid_def(),
-            keyboard_metadata=keyboard_metadata_def(),
-        )
-    )
+metadata_path = os.path.join("include", "metadata.h")
+metadata_contents = METADATA_TEMPLATE.format(
+    ms_os_20_guid=ms_os_20_guid_def(),
+    keyboard_metadata=keyboard_metadata_def(),
+)
+try:
+    with open(metadata_path, "r", newline="") as f:
+        current_metadata = f.read()
+except FileNotFoundError:
+    current_metadata = None
+
+if current_metadata != metadata_contents:
+    with open(metadata_path, "w", newline="") as f:
+        f.write(metadata_contents)
