@@ -167,5 +167,19 @@ if kb_json.rgb is not None:
     build_flags.define("RGB_DEFAULT_B", rgb.default_color[2])
     build_flags.define(f"RGB_BACKEND_{rgb.backend.upper()}")
 
+    # Wiring order. Everything above the backend - effects, pixel commands and
+    # host frames - then addresses LEDs in logical order, and only the DMA
+    # buffer is written in chain order.
+    if rgb.led_index_map is not None:
+        build_flags.define("RGB_LED_INDEX_MAP", utils.to_c_array(rgb.led_index_map))
+
+    # Physical placement, normalized to 0-255 so position-aware effects stay
+    # integer-only on the MCU. Only the X axis has a consumer today, so the Y
+    # column stays in `keyboard.json` rather than in the firmware image.
+    if rgb.led_position is not None:
+        build_flags.define(
+            "RGB_LED_POS_X", utils.to_c_array(utils.normalize_axis(rgb.led_position, 0))
+        )
+
 # Add source build flags
 env.Append(BUILD_FLAGS=build_flags.get_flags())

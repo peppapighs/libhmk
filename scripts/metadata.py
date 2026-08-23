@@ -74,6 +74,13 @@ def keyboard_metadata_def():
                 "protocolMajor": 1,
                 "protocolMinor": 0,
                 "effects": [0, 1, 2, 3, 7],
+                # Only advertised when the keyboard states it. A host must not
+                # infer the relationship from matching key and LED counts.
+                **(
+                    {"keyToLed": kb_json.rgb.key_to_led}
+                    if kb_json.rgb.key_to_led is not None
+                    else {}
+                ),
             }
             if kb_json.rgb is not None
             else None

@@ -12,11 +12,19 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
 from enum import Enum
-from pydantic import BaseModel, Field, NonNegativeInt, PositiveFloat, PositiveInt
+from pydantic import (
+    BaseModel,
+    Field,
+    NonNegativeInt,
+    PositiveFloat,
+    PositiveInt,
+    model_validator,
+)
 from typing import Annotated
 
 
 RGBComponent = Annotated[int, Field(ge=0, le=255)]
+LEDIndex = Annotated[int, Field(ge=0, le=254)]
 
 
 class KeyboardUSBPort(str, Enum):
@@ -131,6 +139,44 @@ class KeyboardRGB(BaseModel):
     backend: str = Field(pattern=r"^ws2812_tim2_ch1$")
     default_brightness: int = Field(ge=0, le=255, default=50)
     default_color: tuple[RGBComponent, RGBComponent, RGBComponent] = (255, 255, 255)
+    # Wiring order: `led_index_map[logical] = position in the LED chain`. Boards
+    # whose strip snakes across the PCB declare it so the core, the effects and
+    # the host protocol all address LEDs in one stable logical order. Omitting
+    # it means the chain order is the logical order.
+    led_index_map: list[LEDIndex] | None = None
+    # Physical `[x, y]` of each logical LED in any consistent integer unit
+    # (KBHE uses 0.1 mm from the PCB placement). Position-aware effects such as
+    # the rainbow wave sweep along these axes instead of along the chain.
+    led_position: list[tuple[int, int]] | None = None
+    # Which LED lights each key, in logical key order. `null` marks a key with
+    # no LED. Hosts must not infer this from matching key and LED counts.
+    key_to_led: list[LEDIndex | None] | None = None
+
+    @model_validator(mode="after")
+    def validate_topology(self):
+        if self.led_index_map is not None:
+            if len(self.led_index_map) != self.num_leds:
+                raise ValueError(
+                    f"Expected led_index_map to have {self.num_leds} entries"
+                )
+            if sorted(self.led_index_map) != list(range(self.num_leds)):
+                raise ValueError(
+                    "led_index_map must be a permutation of the LED chain"
+                )
+        if self.led_position is not None:
+            if len(self.led_position) != self.num_leds:
+                raise ValueError(
+                    f"Expected led_position to have {self.num_leds} entries"
+                )
+            if any(x < 0 or y < 0 for x, y in self.led_position):
+                raise ValueError("led_position coordinates must not be negative")
+        if self.key_to_led is not None and any(
+            led is not None and led >= self.num_leds for led in self.key_to_led
+        ):
+            raise ValueError(
+                f"key_to_led entries must be below {self.num_leds}"
+            )
+        return self
 
 
 # keyboard.json Schema

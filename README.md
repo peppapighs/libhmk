@@ -83,6 +83,24 @@ Backends must copy a submitted logical RGB frame and return immediately. DMA or
 another asynchronous peripheral mechanism should perform the physical transfer
 so lighting cannot stall matrix processing.
 
+Strips are rarely wired in the order a user perceives. Three optional fields
+describe the board so nothing above the output stage has to know its wiring:
+
+- `led_index_map` gives, for each logical LED, its position in the chain. The
+  core, the effects and the host protocol then all address LEDs in one stable
+  logical order, and only the buffer handed to the backend is written in chain
+  order.
+- `led_position` gives each logical LED an `[x, y]` coordinate in any
+  consistent integer unit. The rainbow wave sweeps along X, so on a serpentine
+  board it stays a vertical band travelling sideways instead of snaking back on
+  every other row.
+- `key_to_led` states which LED lights each key. Hosts must not infer it from
+  matching key and LED counts, so it is advertised in the keyboard metadata
+  only when the keyboard declares it.
+
+A board that omits them keeps the previous behaviour: the strip is treated as a
+bare line of pixels in wiring order.
+
 ### Gamepad API
 
 The two low bits in `eeconfig_options_t` select one mutually exclusive gamepad

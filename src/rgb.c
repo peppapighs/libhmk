@@ -19,6 +19,41 @@ _Static_assert((RGB_FRAME_BYTES + RGB_FRAME_CHUNK_BYTES - 1u) /
                    16u,
                "RGB live-frame chunk bitmap is too small");
 
+/*
+ * Optional board topology. `RGB_LED_INDEX_MAP` maps a logical LED to its place
+ * in the physical chain, and `RGB_LED_POS_X` gives each logical LED a 0-255
+ * coordinate along the board's width. A board that declares neither keeps the
+ * previous behaviour: the strip is a bare line of pixels in wiring order.
+ */
+#if defined(RGB_LED_INDEX_MAP)
+static const uint8_t rgb_led_index_map[RGB_LED_COUNT] = RGB_LED_INDEX_MAP;
+#endif
+#if defined(RGB_LED_POS_X)
+static const uint8_t rgb_led_pos_x[RGB_LED_COUNT] = RGB_LED_POS_X;
+#endif
+
+static inline uint16_t rgb_physical_index(uint16_t index) {
+#if defined(RGB_LED_INDEX_MAP)
+  return rgb_led_index_map[index];
+#else
+  return index;
+#endif
+}
+
+/*
+ * Phase offset of one LED in a travelling effect. Spreading the offset over the
+ * board's X axis makes the wave a vertical band sweeping horizontally. Without
+ * declared positions the offset falls back to the chain index, which on a
+ * serpentine strip looks like a snake rather than a wave.
+ */
+static inline uint8_t rgb_wave_offset(uint16_t index) {
+#if defined(RGB_LED_POS_X)
+  return rgb_led_pos_x[index];
+#else
+  return (uint8_t)(((uint32_t)index * 256u) / RGB_LED_COUNT);
+#endif
+}
+
 static eeconfig_rgb_t rgb_config;
 static uint8_t rgb_frame[RGB_FRAME_BYTES];
 static uint8_t rgb_live_staging[RGB_FRAME_BYTES];
@@ -118,8 +153,7 @@ static void rgb_render_effect(void) {
     break;
   case RGB_EFFECT_RAINBOW_WAVE:
     for (uint16_t i = 0; i < RGB_LED_COUNT; i++) {
-      const uint8_t hue =
-          (uint8_t)(effect_phase + ((uint32_t)i * 256u) / RGB_LED_COUNT);
+      const uint8_t hue = (uint8_t)(effect_phase + rgb_wave_offset(i));
       rgb_hue_to_rgb(hue, &r, &g, &b);
       rgb_write_pixel(rgb_frame, i, r, g, b);
     }
@@ -175,12 +209,17 @@ void rgb_task(void) {
   if (!frame_dirty || rgb_backend_is_busy())
     return;
 
-  for (uint16_t i = 0; i < RGB_FRAME_BYTES; i++) {
-    const uint32_t scaled = (uint32_t)rgb_frame[i] *
-                                (uint32_t)rgb_config.brightness +
-                            127u;
-    rgb_output[i] =
-        rgb_config.enabled ? (uint8_t)(scaled / 255u) : (uint8_t)0u;
+  for (uint16_t i = 0; i < RGB_LED_COUNT; i++) {
+    const uint16_t src = (uint16_t)(i * RGB_BYTES_PER_PIXEL);
+    const uint16_t dst =
+        (uint16_t)(rgb_physical_index(i) * RGB_BYTES_PER_PIXEL);
+    for (uint8_t channel = 0; channel < RGB_BYTES_PER_PIXEL; channel++) {
+      const uint32_t scaled = (uint32_t)rgb_frame[src + channel] *
+                                  (uint32_t)rgb_config.brightness +
+                              127u;
+      rgb_output[dst + channel] =
+          rgb_config.enabled ? (uint8_t)(scaled / 255u) : (uint8_t)0u;
+    }
   }
 
   if (rgb_backend_submit(rgb_output, RGB_LED_COUNT))
