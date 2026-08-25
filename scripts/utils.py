@@ -71,6 +71,17 @@ def to_c_array(arr: list | bytes):
     return f"{{{', '.join(to_c_array(x) if isinstance(x, list) else str(x) for x in arr)}}}"
 
 
+# Scale one axis of a physical LED placement to 0-255. The unit used in
+# `keyboard.json` is arbitrary as long as it is consistent, so only the span
+# matters; a board with a single column collapses to zero rather than dividing.
+def normalize_axis(positions: list[tuple[int, int]], axis: int):
+    values = [position[axis] for position in positions]
+    low, span = min(values), max(values) - min(values)
+    if span == 0:
+        return [0] * len(values)
+    return [round((value - low) * 255 / span) for value in values]
+
+
 # Convert a Python dictionary to a C struct initializer
 def to_c_struct(value: dict):
     return f"{{{', '.join(f'.{k} = {v}' for k, v in value.items())}}}"

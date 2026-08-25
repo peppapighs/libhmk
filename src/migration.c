@@ -74,6 +74,13 @@ static bool v1_6_profile_config_func(uint8_t profile, uint8_t *dst,
 #define MIGRATION_V1_6_GLOBAL_CONFIG_SIZE MIGRATION_V1_5_GLOBAL_CONFIG_SIZE
 #define MIGRATION_V1_6_PROFILE_CONFIG_SIZE MIGRATION_V1_5_PROFILE_CONFIG_SIZE
 
+static bool v1_7_global_config_func(uint8_t *dst, const uint8_t *src);
+static bool v1_7_profile_config_func(uint8_t profile, uint8_t *dst,
+                                     const uint8_t *src);
+#define MIGRATION_V1_7_GLOBAL_CONFIG_SIZE                                      \
+  (MIGRATION_V1_6_GLOBAL_CONFIG_SIZE + sizeof(eeconfig_rgb_t))
+#define MIGRATION_V1_7_PROFILE_CONFIG_SIZE MIGRATION_V1_6_PROFILE_CONFIG_SIZE
+
 // Migration metadata for each configuration version. The first entry is
 // reserved for the initial version (v1.0) which does not require migration.
 static const migration_t migrations[] = {
@@ -124,13 +131,20 @@ static const migration_t migrations[] = {
         .global_config_func = v1_6_global_config_func,
         .profile_config_func = v1_6_profile_config_func,
     },
+    {
+        .version = 0x0107,
+        .global_config_size = MIGRATION_V1_7_GLOBAL_CONFIG_SIZE,
+        .profile_config_size = MIGRATION_V1_7_PROFILE_CONFIG_SIZE,
+        .global_config_func = v1_7_global_config_func,
+        .profile_config_func = v1_7_profile_config_func,
+    },
 };
 
 // An assertion to remind us to bump the persistent configuration version, and
 // implement a migration function if there is a change to the configuration
 // type. Update the assertion when a new version is added.
-_Static_assert(MIGRATION_V1_6_GLOBAL_CONFIG_SIZE +
-                       NUM_PROFILES * MIGRATION_V1_6_PROFILE_CONFIG_SIZE ==
+_Static_assert(MIGRATION_V1_7_GLOBAL_CONFIG_SIZE +
+                       NUM_PROFILES * MIGRATION_V1_7_PROFILE_CONFIG_SIZE ==
                    offsetof(eeconfig_t, magic_end),
                "Invalid configuration size");
 
@@ -433,5 +447,30 @@ static bool v1_6_profile_config_func(uint8_t profile, uint8_t *dst,
                                      const uint8_t *src) {
   (void)profile;
   migration_memcpy(&dst, &src, MIGRATION_V1_6_PROFILE_CONFIG_SIZE);
+  return true;
+}
+
+//--------------------------------------------------------------------+
+// v1.6 -> v1.7 Migration (stable optional-RGB layout)
+//--------------------------------------------------------------------+
+
+static bool v1_7_global_config_func(uint8_t *dst, const uint8_t *src) {
+  if (((const eeconfig_t *)src)->version != 0x0106)
+    return false;
+
+  migration_memcpy(&dst, &src, MIGRATION_V1_6_GLOBAL_CONFIG_SIZE);
+  migration_assign_uint8_t(&dst, 1u);
+  migration_assign_uint8_t(&dst, RGB_DEFAULT_BRIGHTNESS);
+  migration_assign_uint8_t(&dst, 0u); /* Static effect. */
+  migration_assign_uint8_t(&dst, RGB_DEFAULT_R);
+  migration_assign_uint8_t(&dst, RGB_DEFAULT_G);
+  migration_assign_uint8_t(&dst, RGB_DEFAULT_B);
+  return true;
+}
+
+static bool v1_7_profile_config_func(uint8_t profile, uint8_t *dst,
+                                     const uint8_t *src) {
+  (void)profile;
+  migration_memcpy(&dst, &src, MIGRATION_V1_7_PROFILE_CONFIG_SIZE);
   return true;
 }

@@ -88,6 +88,15 @@ eeconfig_set_gamepad_api(eeconfig_options_t *options, gamepad_api_t api) {
   return true;
 }
 
+typedef struct __attribute__((packed)) {
+  uint8_t enabled;
+  uint8_t brightness;
+  uint8_t effect;
+  uint8_t color_r;
+  uint8_t color_g;
+  uint8_t color_b;
+} eeconfig_rgb_t;
+
 // Keyboard profile configuration
 typedef struct __attribute__((packed)) {
   uint8_t keymap[NUM_LAYERS][NUM_KEYS];
@@ -102,7 +111,7 @@ typedef struct __attribute__((packed)) {
 // Persistent configuration version. The size of the configuration must be
 // non-decreasing, so that the migration can assume that the new version is at
 // least as large as the previous version.
-#define EECONFIG_VERSION 0x0106
+#define EECONFIG_VERSION 0x0107
 
 // Keyboard configuration
 // Whenever there is a change in the configuration, `EECONFIG_VERSION` must be
@@ -126,6 +135,10 @@ typedef struct __attribute__((packed)) {
   uint8_t current_profile;
   // Last non-default profile index, used for profile swapping
   uint8_t last_non_default_profile;
+  /* Keep board-wide RGB settings in the common persistent layout even when
+   * RGB is not compiled, so firmware variants never shift profile offsets.
+   * Live pixels themselves remain runtime-only. */
+  eeconfig_rgb_t rgb;
   // End of global configurations
 
   // Profiles
@@ -184,6 +197,28 @@ extern const eeconfig_t *eeconfig;
 // Default tick rate
 #define DEFAULT_TICK_RATE 30
 #endif
+
+#if !defined(RGB_DEFAULT_BRIGHTNESS)
+#define RGB_DEFAULT_BRIGHTNESS 50
+#endif
+#if !defined(RGB_DEFAULT_R)
+#define RGB_DEFAULT_R 255
+#endif
+#if !defined(RGB_DEFAULT_G)
+#define RGB_DEFAULT_G 255
+#endif
+#if !defined(RGB_DEFAULT_B)
+#define RGB_DEFAULT_B 255
+#endif
+#define DEFAULT_RGB                                                            \
+  {                                                                            \
+      .enabled = 1,                                                            \
+      .brightness = RGB_DEFAULT_BRIGHTNESS,                                    \
+      .effect = 0,                                                             \
+      .color_r = RGB_DEFAULT_R,                                                \
+      .color_g = RGB_DEFAULT_G,                                                \
+      .color_b = RGB_DEFAULT_B,                                                \
+  }
 
 //--------------------------------------------------------------------+
 // Persistent Configuration API

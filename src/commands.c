@@ -20,6 +20,9 @@
 #include "layout.h"
 #include "matrix.h"
 #include "metadata.h"
+#if defined(RGB_ENABLE)
+#include "rgb.h"
+#endif
 #include "tusb.h"
 
 // Helper macro to verify command parameters
@@ -208,6 +211,10 @@ static void command_process(void) {
   const command_in_buffer_t *in = (const command_in_buffer_t *)in_buf;
   command_out_buffer_t *out = (command_out_buffer_t *)out_buf;
 
+  /* Responses are fixed-size RAW HID reports. Clear unused bytes so a short
+   * response cannot leak payload left behind by an earlier command. */
+  memset(out_buf, 0, sizeof(out_buf));
+
   bool success = true;
   switch (in->command_id) {
   case COMMAND_FIRMWARE_VERSION: {
@@ -334,6 +341,127 @@ static void command_process(void) {
     success = EECONFIG_WRITE(bottom_out_threshold, bottom_out_threshold);
     break;
   }
+#if defined(RGB_ENABLE)
+  case COMMAND_GET_LED_ENABLED: {
+    out_buf[1] = 0;
+    out_buf[2] = rgb_is_enabled() ? 1u : 0u;
+    break;
+  }
+  case COMMAND_SET_LED_ENABLED: {
+    if (in_buf[2] > 1u)
+      out_buf[1] = 3u;
+    else
+      out_buf[1] = rgb_set_enabled(in_buf[2] != 0u, true) ? 0u : 1u;
+    out_buf[2] = rgb_is_enabled() ? 1u : 0u;
+    break;
+  }
+  case COMMAND_GET_LED_BRIGHTNESS: {
+    out_buf[1] = 0;
+    out_buf[2] = rgb_get_brightness();
+    break;
+  }
+  case COMMAND_SET_LED_BRIGHTNESS: {
+    out_buf[1] = rgb_set_brightness(in_buf[2], true) ? 0u : 1u;
+    out_buf[2] = rgb_get_brightness();
+    break;
+  }
+  case COMMAND_GET_LED_PIXEL: {
+    uint8_t r = 0, g = 0, b = 0;
+    out_buf[2] = in_buf[2];
+    out_buf[1] = rgb_get_pixel(in_buf[2], &r, &g, &b) ? 0u : 3u;
+    out_buf[3] = r;
+    out_buf[4] = g;
+    out_buf[5] = b;
+    break;
+  }
+  case COMMAND_SET_LED_PIXEL: {
+    out_buf[2] = in_buf[2];
+    out_buf[3] = in_buf[3];
+    out_buf[4] = in_buf[4];
+    out_buf[5] = in_buf[5];
+    out_buf[1] = rgb_set_pixel(in_buf[2], in_buf[3], in_buf[4], in_buf[5])
+                     ? 0u
+                     : 3u;
+    break;
+  }
+  case COMMAND_GET_LED_ALL: {
+    const uint8_t chunk = in_buf[2];
+    const uint16_t offset = (uint16_t)chunk * 60u;
+    const uint16_t remaining = offset < (uint16_t)RGB_FRAME_BYTES
+                                   ? (uint16_t)((uint16_t)RGB_FRAME_BYTES -
+                                                offset)
+                                   : 0u;
+    const uint8_t len = remaining > 60u ? 60u : (uint8_t)remaining;
+    out_buf[2] = chunk;
+    out_buf[3] = len;
+    out_buf[1] = rgb_get_frame_chunk(offset, out_buf + 4, len) ? 0u : 3u;
+    break;
+  }
+  case COMMAND_SET_LED_ALL_CHUNK: {
+    const uint8_t chunk = in_buf[2];
+    const uint8_t len = in_buf[3];
+    const uint16_t offset = (uint16_t)chunk * 60u;
+    out_buf[2] = chunk;
+    out_buf[3] = len;
+    out_buf[1] = (len <= 60u && rgb_set_frame_chunk(offset, in_buf + 4, len))
+                     ? 0u
+                     : 3u;
+    break;
+  }
+  case COMMAND_LED_CLEAR: {
+    out_buf[1] = rgb_fill(0, 0, 0, rgb_get_effect() != RGB_EFFECT_LIVE)
+                     ? 0u
+                     : 1u;
+    break;
+  }
+  case COMMAND_LED_FILL: {
+    out_buf[1] = rgb_fill(in_buf[2], in_buf[3], in_buf[4],
+                          rgb_get_effect() != RGB_EFFECT_LIVE)
+                     ? 0u
+                     : 1u;
+    out_buf[2] = in_buf[2];
+    out_buf[3] = in_buf[3];
+    out_buf[4] = in_buf[4];
+    break;
+  }
+  case COMMAND_GET_LED_EFFECT: {
+    out_buf[1] = 0;
+    out_buf[2] = rgb_get_effect();
+    break;
+  }
+  case COMMAND_SET_LED_EFFECT: {
+    const uint8_t effect = in_buf[2];
+    const bool valid = effect == RGB_EFFECT_STATIC ||
+                       effect == RGB_EFFECT_BREATHING ||
+                       effect == RGB_EFFECT_RAINBOW ||
+                       effect == RGB_EFFECT_RAINBOW_WAVE ||
+                       effect == RGB_EFFECT_LIVE;
+    if (!valid)
+      out_buf[1] = 3u;
+    else
+      out_buf[1] = rgb_set_effect(effect, effect != RGB_EFFECT_LIVE) ? 0u : 1u;
+    out_buf[2] = rgb_get_effect();
+    break;
+  }
+  case COMMAND_RESTORE_LED_EFFECT: {
+    out_buf[1] = rgb_restore_effect() ? 0u : 1u;
+    out_buf[2] = rgb_get_effect();
+    break;
+  }
+  case COMMAND_GET_RGB_CAPABILITIES: {
+    out_buf[1] = 0;
+    out_buf[2] = 1; /* protocol major */
+    out_buf[3] = 0; /* protocol minor */
+    out_buf[4] = RGB_LED_COUNT;
+    out_buf[5] = RGB_BYTES_PER_PIXEL;
+    out_buf[6] = 60;
+    out_buf[7] = RGB_EFFECT_LIVE;
+    out_buf[8] = 0x7f; /* enabled..restore */
+    out_buf[9] = 0;
+    out_buf[10] = 0; /* logical RGB */
+    break;
+  }
+#endif
     //--------------------------------------------------------------------+
     // Per-profile commands
     //--------------------------------------------------------------------+
@@ -479,6 +607,7 @@ static void command_process(void) {
     const command_in_gamepad_options_t *p = &in->gamepad_options;
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
+
     out->gamepad_options = eeconfig->profiles[p->profile].gamepad_options;
     break;
   }

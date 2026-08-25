@@ -27,10 +27,13 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
 - [x] **Tick Rate**: Customizable tick rate for Tap-Hold and Dynamic Keystroke.
 - [x] **8kHz Polling Rate**: Support for 8kHz polling rate on some microcontrollers (e.g., AT32F405xx).
 - [x] **Gamepad**: Selectable XInput or standards-based HID gamepad output.
+- [x] **RGB Lighting**: Optional non-blocking backends, basic effects, brightness/color persistence and host-controlled per-LED frames.
 
 ## Limitations
 
-- **RGB Lighting**: The firmware does not support RGB lighting.
+- **RGB Backends**: Addressable lighting is opt-in and each MCU family must
+  provide a non-blocking implementation of `include/hardware/rgb_api.h`. The
+  first backend supports WS2812 LEDs on STM32F723 TIM2 channel 1.
 
 ## Getting Started
 
@@ -58,6 +61,48 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
    - `firmware.elf`: The ELF firmware file
 
 6. Flash the firmware to your keyboard using your preferred method (e.g., DFU, ISP). If your keyboard has a DFU bootloader, you can set `upload_protocol = dfu` in `platformio.ini` and use the command `pio run --target upload` or the PlatformIO IDE's "Upload" option while the keyboard is in DFU mode. If your browser supports WebUSB, you can also use [WebUSB DFU](https://devanlai.github.io/webdfu/dfu-util/) (Recommended method).
+
+### RGB lighting
+
+Add an `rgb` object to `keyboard.json` to opt in. It defines the LED count,
+data pin, backend, default brightness and default color. Non-RGB keyboards do
+not compile the renderer, allocate frame buffers, schedule an RGB task, or
+install a hardware backend.
+
+The portable core provides static, breathing, rainbow, rainbow-wave and live
+effects. Live mode accepts atomic 60-byte RAW HID chunks: a frame is published
+only after all chunks arrive, and live frames are never written to flash. The
+wire protocol is documented by the command IDs in `include/commands.h`; hosts
+must first negotiate `COMMAND_GET_RGB_CAPABILITIES` (`0x7F`).
+
+`LED_FILL` changes the persistent base color used by static and breathing
+effects; rainbow effects keep their generated colors. Combined with the static
+effect it produces an arbitrary persistent solid color. Only arbitrary per-LED
+frames require live mode.
+
+Backends receive a frame that the core has already translated into physical
+chain order. They must copy it and return immediately; DMA or another
+asynchronous peripheral mechanism should perform the transfer so lighting does
+not bit-bang pixels in the matrix loop.
+
+Brightness defaults are board-owned and should be chosen for the board's LED
+type and power path (KBHE starts at 50/255). The core also publishes a black
+frame and pauses animation while USB is suspended; it restores the selected
+effect after resume.
+
+Strips are rarely wired in the order a user perceives. Three optional fields
+describe the board without leaking physical wiring into the host protocol:
+
+- `led_index_map` gives, for each logical LED, its position in the chain. The
+  core, effects and host protocol use logical order; only the buffer handed to
+  the backend is translated to chain order.
+- `led_position` gives each logical LED an `[x, y]` coordinate in any
+  consistent integer unit. The rainbow wave sweeps along X, so on a serpentine
+  board it stays a vertical band instead of reversing on alternate rows.
+- `key_to_led` states which logical LED lights each key. `null` can represent a
+  key without an LED. Hosts must not infer this relationship from equal counts.
+
+A board that omits these fields keeps the simple linear-strip behaviour.
 
 ### Gamepad API
 

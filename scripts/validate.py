@@ -25,6 +25,11 @@ utils.get_driver(keyboard)
 # Load JSON files and validate
 kb_json = utils.get_kb_json(keyboard)
 
+if kb_json.rgb is not None and kb_json.hardware.driver != "stm32f723xx":
+    raise ValueError(
+        "The ws2812_tim2_ch1 RGB backend currently requires stm32f723xx"
+    )
+
 # Validate default keymaps
 default_keymaps = utils.resolve_default_keymaps(kb_json)
 if len(default_keymaps) != kb_json.keyboard.num_profiles:

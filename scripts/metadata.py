@@ -41,8 +41,6 @@ driver = utils.get_driver(keyboard)
 
 
 def ms_os_20_guid_def():
-    # A stable XInput interface identity avoids a new Windows device binding
-    # on every build while remaining unique for each VID/PID pair.
     identity = (
         f"https://github.com/peppapighs/libhmk/"
         f"{kb_json.usb.vid}/{kb_json.usb.pid}/xinput"
@@ -70,6 +68,23 @@ def keyboard_metadata_def():
         "gamepadApis": ["xinput", "hid"],
         "layout": kb_json.layout.model_dump(exclude_none=True),
         "defaultKeymaps": utils.resolve_default_keymaps(kb_json),
+        "rgb": (
+            {
+                "numLeds": kb_json.rgb.num_leds,
+                "protocolMajor": 1,
+                "protocolMinor": 0,
+                "effects": [0, 1, 2, 3, 7],
+                # Only advertised when the keyboard states it. A host must not
+                # infer the relationship from matching key and LED counts.
+                **(
+                    {"keyToLed": kb_json.rgb.key_to_led}
+                    if kb_json.rgb.key_to_led is not None
+                    else {}
+                ),
+            }
+            if kb_json.rgb is not None
+            else None
+        ),
     }
 
     uncompressed = json.dumps(metadata).encode("utf-8")
@@ -80,10 +95,17 @@ def keyboard_metadata_def():
     return utils.to_slice_def("KEYBOARD_METADATA", compressed)
 
 
-with open(os.path.join("include", "metadata.h"), "w") as f:
-    f.write(
-        METADATA_TEMPLATE.format(
-            ms_os_20_guid=ms_os_20_guid_def(),
-            keyboard_metadata=keyboard_metadata_def(),
-        )
-    )
+metadata_path = os.path.join("include", "metadata.h")
+metadata_contents = METADATA_TEMPLATE.format(
+    ms_os_20_guid=ms_os_20_guid_def(),
+    keyboard_metadata=keyboard_metadata_def(),
+)
+try:
+    with open(metadata_path, "r", newline="") as f:
+        current_metadata = f.read()
+except FileNotFoundError:
+    current_metadata = None
+
+if current_metadata != metadata_contents:
+    with open(metadata_path, "w", newline="") as f:
+        f.write(metadata_contents)
