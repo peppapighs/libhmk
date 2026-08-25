@@ -17,7 +17,6 @@
 
 #include "device/usbd_pvt.h"
 #include "eeconfig.h"
-#include "lib/bitmap.h"
 #include "lib/usqrt.h"
 #include "matrix.h"
 #include "tusb.h"
@@ -68,6 +67,13 @@ static uint8_t apply_analog_curve(uint8_t value, bool *is_key_end_deadzone) {
   const int16_t x1 = curve[i][0], y1 = curve[i][1];
   const int16_t x2 = curve[i + 1][0], y2 = curve[i + 1][1];
 
+  /* Treat a malformed persisted curve as linear input. Host-side validation
+   * prevents new invalid curves, but this guard also makes old/corrupt storage
+   * incapable of triggering division by zero here. */
+  if (x2 <= x1) {
+    *is_key_end_deadzone = false;
+    return value;
+  }
   return y1 + (y2 - y1) * (value - x1) / (x2 - x1);
 }
 
@@ -101,10 +107,14 @@ static const uint8_t joystick_axes[][2] = {
 // Endpoints for XInput communication
 static uint8_t endpoint_in;
 static uint8_t endpoint_out;
+CFG_TUSB_MEM_SECTION CFG_TUSB_MEM_ALIGN
+static uint8_t xinput_out_report[XINPUT_EP_SIZE];
 
-// We track key press states independently of the layout module in case
-// layout processing is disabled for some keys.
-static bitmap_t key_press_states[] = MAKE_BITMAP(NUM_KEYS);
+/* Digital buttons are aggregated from scratch on every matrix scan. This
+ * keeps duplicate mappings pressed until their last physical key is released
+ * and cannot retain stale state across a profile/keymap change. */
+static uint16_t digital_buttons;
+static bool gamepad_report_pending;
 // Track maximum analog values for analog buttons
 // (2 joysticks * 4 directions + 2 triggers)
 static uint16_t analog_states[10];
@@ -114,7 +124,87 @@ static uint16_t analog_states[10];
 
 static xinput_report_t report = {.report_size = sizeof(xinput_report_t)};
 
-void xinput_init(void) {}
+static int8_t hid_axis_from_xinput(int16_t value) {
+  return (int8_t)(value / 257);
+}
+
+static int8_t hid_trigger_from_xinput(uint8_t value) {
+  const int16_t scaled = (int16_t)(((uint16_t)value * 254u) / 255u);
+  return (int8_t)(scaled - 127);
+}
+
+static uint8_t hid_hat_from_xinput(uint16_t buttons) {
+  const bool up = (buttons & XINPUT_BUTTON_UP) != 0u;
+  const bool down = (buttons & XINPUT_BUTTON_DOWN) != 0u;
+  const bool left = (buttons & XINPUT_BUTTON_LEFT) != 0u;
+  const bool right = (buttons & XINPUT_BUTTON_RIGHT) != 0u;
+  const bool effective_up = up && !down;
+  const bool effective_down = down && !up;
+  const bool effective_left = left && !right;
+  const bool effective_right = right && !left;
+
+  if (effective_up && effective_right)
+    return GAMEPAD_HAT_UP_RIGHT;
+  if (effective_down && effective_right)
+    return GAMEPAD_HAT_DOWN_RIGHT;
+  if (effective_down && effective_left)
+    return GAMEPAD_HAT_DOWN_LEFT;
+  if (effective_up && effective_left)
+    return GAMEPAD_HAT_UP_LEFT;
+  if (effective_up)
+    return GAMEPAD_HAT_UP;
+  if (effective_right)
+    return GAMEPAD_HAT_RIGHT;
+  if (effective_down)
+    return GAMEPAD_HAT_DOWN;
+  if (effective_left)
+    return GAMEPAD_HAT_LEFT;
+  return GAMEPAD_HAT_CENTERED;
+}
+
+static uint32_t hid_buttons_from_xinput(uint16_t buttons) {
+  uint32_t result = 0u;
+
+  if ((buttons & XINPUT_BUTTON_A) != 0u)
+    result |= GAMEPAD_BUTTON_0;
+  if ((buttons & XINPUT_BUTTON_B) != 0u)
+    result |= GAMEPAD_BUTTON_1;
+  if ((buttons & XINPUT_BUTTON_X) != 0u)
+    result |= GAMEPAD_BUTTON_2;
+  if ((buttons & XINPUT_BUTTON_Y) != 0u)
+    result |= GAMEPAD_BUTTON_3;
+  if ((buttons & XINPUT_BUTTON_LB) != 0u)
+    result |= GAMEPAD_BUTTON_4;
+  if ((buttons & XINPUT_BUTTON_RB) != 0u)
+    result |= GAMEPAD_BUTTON_5;
+  if ((buttons & XINPUT_BUTTON_LS) != 0u)
+    result |= GAMEPAD_BUTTON_6;
+  if ((buttons & XINPUT_BUTTON_RS) != 0u)
+    result |= GAMEPAD_BUTTON_7;
+  if ((buttons & XINPUT_BUTTON_BACK) != 0u)
+    result |= GAMEPAD_BUTTON_8;
+  if ((buttons & XINPUT_BUTTON_START) != 0u)
+    result |= GAMEPAD_BUTTON_9;
+  if ((buttons & XINPUT_BUTTON_HOME) != 0u)
+    result |= GAMEPAD_BUTTON_10;
+  return result;
+}
+
+static hid_gamepad_report_t hid_report_from_xinput(void) {
+  return (hid_gamepad_report_t){
+      .x = hid_axis_from_xinput(report.joysticks[0]),
+      /* HID's conventional positive Y direction is down. */
+      .y = (int8_t)-hid_axis_from_xinput(report.joysticks[1]),
+      .z = hid_axis_from_xinput(report.joysticks[2]),
+      .rz = (int8_t)-hid_axis_from_xinput(report.joysticks[3]),
+      .rx = hid_trigger_from_xinput(report.lz),
+      .ry = hid_trigger_from_xinput(report.rz),
+      .hat = hid_hat_from_xinput(report.buttons),
+      .buttons = hid_buttons_from_xinput(report.buttons),
+  };
+}
+
+void xinput_init(void) { gamepad_report_pending = true; }
 
 void xinput_process(uint8_t key) {
   const key_state_t *k = &key_matrix[key];
@@ -125,17 +215,8 @@ void xinput_process(uint8_t key) {
 
   switch (keycode) {
   case GP_BUTTON_A ... GP_BUTTON_RB: {
-    const bool last_key_press = bitmap_get(key_press_states, key);
-
-    if (k->is_pressed & !last_key_press)
-      // Key press event
-      report.buttons |= keycode_to_bm[keycode];
-    else if (!k->is_pressed & last_key_press)
-      // Key release event
-      report.buttons &= ~keycode_to_bm[keycode];
-
-    // Finally, update the key state
-    bitmap_set(key_press_states, key, k->is_pressed);
+    if (k->is_pressed)
+      digital_buttons |= keycode_to_bm[keycode];
     break;
   }
   case GP_BUTTON_LS_UP ... GP_BUTTON_RT: {
@@ -151,8 +232,23 @@ void xinput_process(uint8_t key) {
 
 void xinput_task(void) {
   static xinput_report_t last_report = {.report_size = sizeof(xinput_report_t)};
+  static hid_gamepad_report_t last_hid_report = {0};
+  static bool usb_was_ready;
+  const gamepad_api_t api = eeconfig_get_gamepad_api(&eeconfig->options);
+
+  if (api == GAMEPAD_API_DISABLED) {
+    digital_buttons = 0u;
+    memset(analog_states, 0, sizeof(analog_states));
+    return;
+  }
+
+  const bool usb_ready = tud_ready();
+  if (usb_ready && !usb_was_ready)
+    gamepad_report_pending = true;
+  usb_was_ready = usb_ready;
 
   bool is_key_end_deadzone = false;
+  report.buttons = digital_buttons;
   // Update trigger states in the report
   report.lz =
       apply_analog_curve(ANALOG_STATE(GP_BUTTON_LT), &is_key_end_deadzone);
@@ -237,17 +333,30 @@ void xinput_task(void) {
       report.joysticks[i] = -joystick_state;
   }
 
-  if (tud_ready() && endpoint_in != 0 && !usbd_edpt_busy(0, endpoint_in) &&
-      // Only send report if it has changed
-      memcmp(&report, &last_report, sizeof(xinput_report_t)) != 0) {
-    usbd_edpt_claim(0, endpoint_in);
-    usbd_edpt_xfer(0, endpoint_in, (uint8_t *)&report, sizeof(xinput_report_t));
-    usbd_edpt_release(0, endpoint_in);
-    // Update the last report to the current one
-    memcpy(&last_report, &report, sizeof(xinput_report_t));
+  if (api == GAMEPAD_API_XINPUT && usb_ready && endpoint_in != 0 &&
+      !usbd_edpt_busy(0, endpoint_in) &&
+      (gamepad_report_pending ||
+       memcmp(&report, &last_report, sizeof(xinput_report_t)) != 0)) {
+    if (usbd_edpt_claim(0, endpoint_in) &&
+        usbd_edpt_xfer(0, endpoint_in, (uint8_t *)&report,
+                       sizeof(xinput_report_t))) {
+      memcpy(&last_report, &report, sizeof(xinput_report_t));
+      gamepad_report_pending = false;
+    }
+  } else if (api == GAMEPAD_API_HID) {
+    const hid_gamepad_report_t hid_report = hid_report_from_xinput();
+    if (usb_ready && tud_hid_n_ready(USB_ITF_GAMEPAD) &&
+        (gamepad_report_pending ||
+         memcmp(&hid_report, &last_hid_report, sizeof(hid_report)) != 0) &&
+        tud_hid_n_report(USB_ITF_GAMEPAD, 0, &hid_report,
+                         sizeof(hid_report))) {
+      last_hid_report = hid_report;
+      gamepad_report_pending = false;
+    }
   }
 
   // Reset analog states for the next scan
+  digital_buttons = 0u;
   memset(analog_states, 0, sizeof(analog_states));
 }
 
@@ -257,7 +366,11 @@ void xinput_task(void) {
 
 static void xinput_driver_init(void) {}
 
-static void xinput_driver_reset(uint8_t rhport) {}
+static void xinput_driver_reset(uint8_t rhport) {
+  endpoint_in = 0u;
+  endpoint_out = 0u;
+  gamepad_report_pending = true;
+}
 
 static uint16_t xinput_driver_open(uint8_t rhport,
                                    const tusb_desc_interface_t *desc_intf,
@@ -265,9 +378,15 @@ static uint16_t xinput_driver_open(uint8_t rhport,
   if (desc_intf->bInterfaceClass == TUSB_CLASS_VENDOR_SPECIFIC &&
       desc_intf->bInterfaceSubClass == XINPUT_SUBCLASS_DEFAULT &&
       desc_intf->bInterfaceProtocol == XINPUT_PROTOCOL_DEFAULT) {
+    TU_ASSERT(max_len >= XINPUT_DESC_LEN, 0);
     TU_ASSERT(usbd_open_edpt_pair(rhport, tu_desc_next(tu_desc_next(desc_intf)),
                                   desc_intf->bNumEndpoints, TUSB_XFER_INTERRUPT,
                                   &endpoint_out, &endpoint_in),
+              0);
+    /* Always consume the optional XInput OUT/rumble report. Leaving the OUT
+     * endpoint unarmed makes hosts retry it indefinitely. */
+    TU_ASSERT(usbd_edpt_xfer(rhport, endpoint_out, xinput_out_report,
+                             sizeof(xinput_out_report)),
               0);
 
     return XINPUT_DESC_LEN;
@@ -285,6 +404,9 @@ xinput_driver_control_xfer_cb(uint8_t rhport, uint8_t stage,
 static bool xinput_driver_xfer_cb(uint8_t rhport, uint8_t ep_addr,
                                   xfer_result_t result,
                                   uint32_t xferred_bytes) {
+  if (ep_addr == endpoint_out)
+    return usbd_edpt_xfer(rhport, endpoint_out, xinput_out_report,
+                          sizeof(xinput_out_report));
   return true;
 }
 
@@ -298,7 +420,11 @@ static const usbd_class_driver_t xinput_driver = {
 };
 
 const usbd_class_driver_t *usbd_app_driver_get_cb(uint8_t *driver_count) {
-  *driver_count = 1;
+  if (eeconfig_get_gamepad_api(&eeconfig->options) != GAMEPAD_API_XINPUT) {
+    *driver_count = 0;
+    return NULL;
+  }
 
+  *driver_count = 1;
   return &xinput_driver;
 }

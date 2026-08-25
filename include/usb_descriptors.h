@@ -37,20 +37,23 @@ enum {
   USB_ITF_KEYBOARD = 0,
   USB_ITF_HID,
   USB_ITF_RAW_HID,
-  // We intentionally put the XInput interface last, so that if it is not
-  // enabled, we can subtract its size from the total configuration length
-  // without affecting the other interfaces.
-  USB_ITF_XINPUT,
+  // The optional gamepad is last so the configuration can expose either an
+  // XInput vendor interface, a standard HID gamepad, or neither.
+  USB_ITF_GAMEPAD,
   USB_ITF_COUNT,
 };
+
+#define USB_ITF_XINPUT USB_ITF_GAMEPAD
 
 // In endpoint addresses
 enum {
   EP_IN_ADDR_KEYBOARD = 0x81,
   EP_IN_ADDR_HID,
   EP_IN_ADDR_RAW_HID,
-  EP_IN_ADDR_XINPUT,
+  EP_IN_ADDR_GAMEPAD,
 };
+
+#define EP_IN_ADDR_XINPUT EP_IN_ADDR_GAMEPAD
 
 // Out endpoint addresses
 enum {
