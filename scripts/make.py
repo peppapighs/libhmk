@@ -152,5 +152,34 @@ if kb_json.actuation is not None:
     if actuation.actuation_point is not None:
         build_flags.define("ACTUATION_POINT", actuation.actuation_point)
 
+# Optional RGB matrix. The core stays out of non-RGB builds and the backend is
+# selected explicitly so existing libhmk keyboards remain unchanged.
+if kb_json.rgb is not None:
+    rgb = kb_json.rgb
+    ports, pin_nums = driver.metadata.adc.to_gpio_array([rgb.data_pin])
+    build_flags.define("RGB_ENABLE")
+    build_flags.define("RGB_LED_COUNT", rgb.num_leds)
+    build_flags.define("RGB_DATA_GPIO_PORT", ports[0])
+    build_flags.define("RGB_DATA_GPIO_PIN", pin_nums[0])
+    build_flags.define("RGB_DEFAULT_BRIGHTNESS", rgb.default_brightness)
+    build_flags.define("RGB_DEFAULT_R", rgb.default_color[0])
+    build_flags.define("RGB_DEFAULT_G", rgb.default_color[1])
+    build_flags.define("RGB_DEFAULT_B", rgb.default_color[2])
+    build_flags.define(f"RGB_BACKEND_{rgb.backend.upper()}")
+
+    # Wiring order. Everything above the backend - effects, pixel commands and
+    # host frames - then addresses LEDs in logical order, and only the DMA
+    # buffer is written in chain order.
+    if rgb.led_index_map is not None:
+        build_flags.define("RGB_LED_INDEX_MAP", utils.to_c_array(rgb.led_index_map))
+
+    # Physical placement, normalized to 0-255 so position-aware effects stay
+    # integer-only on the MCU. Only the X axis has a consumer today, so the Y
+    # column stays in `keyboard.json` rather than in the firmware image.
+    if rgb.led_position is not None:
+        build_flags.define(
+            "RGB_LED_POS_X", utils.to_c_array(utils.normalize_axis(rgb.led_position, 0))
+        )
+
 # Add source build flags
 env.Append(BUILD_FLAGS=build_flags.get_flags())

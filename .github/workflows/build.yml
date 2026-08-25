@@ -13,6 +13,7 @@ on:
       - "linker/**"
       - "scripts/**"
       - "src/**"
+      - "tools/**"
       - ".github/workflows/build.yml"
       - ".github/workflows/ci_define_matrix.py"
   push:
@@ -26,6 +27,7 @@ on:
       - "linker/**"
       - "scripts/**"
       - "src/**"
+      - "tools/**"
       - ".github/workflows/build.yml"
       - ".github/workflows/ci_define_matrix.py"
     tags: ["v*"]
@@ -34,6 +36,20 @@ permissions:
   contents: write
 
 jobs:
+  rgb-host-tests:
+    name: RGB Host Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout libhmk
+        uses: actions/checkout@v6
+
+      - name: Compile and run portable RGB tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Itools/test_include -Iinclude tools/rgb_core_test.c -o /tmp/rgb_core_test
+          /tmp/rgb_core_test
+          cc -std=c11 -Wall -Wextra -Werror -Itools/test_include -Iinclude tools/rgb_topology_test.c -o /tmp/rgb_topology_test
+          /tmp/rgb_topology_test
+
   define-matrix:
     name: Define Action Matrix
     runs-on: ubuntu-latest
@@ -96,7 +112,7 @@ jobs:
   release:
     name: Create Releast Draft
     if: github.ref_type == 'tag'
-    needs: build
+    needs: [build, rgb-host-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Download Firmware Artifacts

@@ -68,6 +68,19 @@ static bool v1_5_profile_config_func(uint8_t profile, uint8_t *dst,
    NUM_ADVANCED_KEYS * MIGRATION_V1_5_ADVANCED_KEY_SIZE +                      \
    NUM_MACRO_NODES * MIGRATION_V1_5_MACRO_NODE_SIZE + NUM_KEYS + 9 + 1)
 
+static bool v1_6_global_config_func(uint8_t *dst, const uint8_t *src);
+static bool v1_6_profile_config_func(uint8_t profile, uint8_t *dst,
+                                     const uint8_t *src);
+#define MIGRATION_V1_6_GLOBAL_CONFIG_SIZE MIGRATION_V1_5_GLOBAL_CONFIG_SIZE
+#define MIGRATION_V1_6_PROFILE_CONFIG_SIZE MIGRATION_V1_5_PROFILE_CONFIG_SIZE
+
+static bool v1_7_global_config_func(uint8_t *dst, const uint8_t *src);
+static bool v1_7_profile_config_func(uint8_t profile, uint8_t *dst,
+                                     const uint8_t *src);
+#define MIGRATION_V1_7_GLOBAL_CONFIG_SIZE                                      \
+  (MIGRATION_V1_6_GLOBAL_CONFIG_SIZE + sizeof(eeconfig_rgb_t))
+#define MIGRATION_V1_7_PROFILE_CONFIG_SIZE MIGRATION_V1_6_PROFILE_CONFIG_SIZE
+
 // Migration metadata for each configuration version. The first entry is
 // reserved for the initial version (v1.0) which does not require migration.
 static const migration_t migrations[] = {
@@ -111,13 +124,27 @@ static const migration_t migrations[] = {
         .global_config_func = v1_5_global_config_func,
         .profile_config_func = v1_5_profile_config_func,
     },
+    {
+        .version = 0x0106,
+        .global_config_size = MIGRATION_V1_6_GLOBAL_CONFIG_SIZE,
+        .profile_config_size = MIGRATION_V1_6_PROFILE_CONFIG_SIZE,
+        .global_config_func = v1_6_global_config_func,
+        .profile_config_func = v1_6_profile_config_func,
+    },
+    {
+        .version = 0x0107,
+        .global_config_size = MIGRATION_V1_7_GLOBAL_CONFIG_SIZE,
+        .profile_config_size = MIGRATION_V1_7_PROFILE_CONFIG_SIZE,
+        .global_config_func = v1_7_global_config_func,
+        .profile_config_func = v1_7_profile_config_func,
+    },
 };
 
 // An assertion to remind us to bump the persistent configuration version, and
 // implement a migration function if there is a change to the configuration
 // type. Update the assertion when a new version is added.
-_Static_assert(MIGRATION_V1_5_GLOBAL_CONFIG_SIZE +
-                       NUM_PROFILES * MIGRATION_V1_5_PROFILE_CONFIG_SIZE ==
+_Static_assert(MIGRATION_V1_7_GLOBAL_CONFIG_SIZE +
+                       NUM_PROFILES * MIGRATION_V1_7_PROFILE_CONFIG_SIZE ==
                    offsetof(eeconfig_t, magic_end),
                "Invalid configuration size");
 
@@ -132,6 +159,14 @@ bool migration_try_migrate(void) {
     return false;
 
   const uint16_t config_version = eeconfig->version;
+  bool version_is_supported = false;
+  for (uint32_t i = 0; i < M_ARRAY_SIZE(migrations); i++)
+    version_is_supported |= migrations[i].version == config_version;
+  /* Never reinterpret an unknown/future layout as the current one. Also do
+   * not merely repair magic_end on an otherwise corrupt current layout. */
+  if (!version_is_supported || config_version >= EECONFIG_VERSION)
+    return false;
+
   // We alternate between two buffers to save the memory.
   uint8_t current_buf = 0;
   uint8_t bufs[2][sizeof(eeconfig_t)];
@@ -389,5 +424,53 @@ bool v1_5_profile_config_func(uint8_t profile, uint8_t *dst,
   // Copy the remaining profile fields.
   migration_memcpy(&dst, &src, NUM_KEYS + 9 + 1);
 
+  return true;
+}
+
+//--------------------------------------------------------------------+
+// v1.5 -> v1.6 Migration (HID gamepad option bit)
+//--------------------------------------------------------------------+
+
+static bool v1_6_global_config_func(uint8_t *dst, const uint8_t *src) {
+  if (((const eeconfig_t *)src)->version != 0x0105)
+    return false;
+
+  uint8_t *const global_config = dst;
+  migration_memcpy(&dst, &src, MIGRATION_V1_6_GLOBAL_CONFIG_SIZE);
+  /* Bit 1 was reserved, but the historical v1.2 -> v1.3 migration set it.
+   * Clear it so an upgrade can never enable the HID interface accidentally. */
+  ((eeconfig_t *)global_config)->options.hid_gamepad_enabled = false;
+  return true;
+}
+
+static bool v1_6_profile_config_func(uint8_t profile, uint8_t *dst,
+                                     const uint8_t *src) {
+  (void)profile;
+  migration_memcpy(&dst, &src, MIGRATION_V1_6_PROFILE_CONFIG_SIZE);
+  return true;
+}
+
+//--------------------------------------------------------------------+
+// v1.6 -> v1.7 Migration (stable optional-RGB layout)
+//--------------------------------------------------------------------+
+
+static bool v1_7_global_config_func(uint8_t *dst, const uint8_t *src) {
+  if (((const eeconfig_t *)src)->version != 0x0106)
+    return false;
+
+  migration_memcpy(&dst, &src, MIGRATION_V1_6_GLOBAL_CONFIG_SIZE);
+  migration_assign_uint8_t(&dst, 1u);
+  migration_assign_uint8_t(&dst, RGB_DEFAULT_BRIGHTNESS);
+  migration_assign_uint8_t(&dst, 0u); /* Static effect. */
+  migration_assign_uint8_t(&dst, RGB_DEFAULT_R);
+  migration_assign_uint8_t(&dst, RGB_DEFAULT_G);
+  migration_assign_uint8_t(&dst, RGB_DEFAULT_B);
+  return true;
+}
+
+static bool v1_7_profile_config_func(uint8_t profile, uint8_t *dst,
+                                     const uint8_t *src) {
+  (void)profile;
+  migration_memcpy(&dst, &src, MIGRATION_V1_7_PROFILE_CONFIG_SIZE);
   return true;
 }
