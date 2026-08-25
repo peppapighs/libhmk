@@ -47,7 +47,9 @@ typedef union __attribute__((packed)) {
   struct __attribute__((packed)) {
     // Whether the XInput interface is enabled
     bool xinput_enabled : 1;
-    bool _unused0 : 1;
+    // Whether a standards-based HID gamepad interface is enabled. It is
+    // mutually exclusive with XInput and reuses a previously reserved bit.
+    bool hid_gamepad_enabled : 1;
     // Whether 8kHz polling rate is enabled. Only applicable if USB HS is
     // enabled. If disabled, the 1kHz polling rate is used instead.
     bool high_polling_rate_enabled : 1;
@@ -59,6 +61,32 @@ typedef union __attribute__((packed)) {
 
 _Static_assert(sizeof(eeconfig_options_t) == sizeof(uint16_t),
                "Invalid eeconfig_options_t size");
+
+typedef enum {
+  GAMEPAD_API_DISABLED = 0,
+  GAMEPAD_API_XINPUT,
+  GAMEPAD_API_HID,
+} gamepad_api_t;
+
+static inline gamepad_api_t
+eeconfig_get_gamepad_api(const eeconfig_options_t *options) {
+  if (options == NULL)
+    return GAMEPAD_API_DISABLED;
+  /* Preserve the legacy bit's priority if corrupted data sets both bits. */
+  if (options->xinput_enabled)
+    return GAMEPAD_API_XINPUT;
+  return options->hid_gamepad_enabled ? GAMEPAD_API_HID
+                                      : GAMEPAD_API_DISABLED;
+}
+
+static inline bool
+eeconfig_set_gamepad_api(eeconfig_options_t *options, gamepad_api_t api) {
+  if (options == NULL || api > GAMEPAD_API_HID)
+    return false;
+  options->xinput_enabled = api == GAMEPAD_API_XINPUT;
+  options->hid_gamepad_enabled = api == GAMEPAD_API_HID;
+  return true;
+}
 
 // Keyboard profile configuration
 typedef struct __attribute__((packed)) {
@@ -74,7 +102,7 @@ typedef struct __attribute__((packed)) {
 // Persistent configuration version. The size of the configuration must be
 // non-decreasing, so that the migration can assume that the new version is at
 // least as large as the previous version.
-#define EECONFIG_VERSION 0x0105
+#define EECONFIG_VERSION 0x0106
 
 // Keyboard configuration
 // Whenever there is a change in the configuration, `EECONFIG_VERSION` must be
@@ -128,6 +156,7 @@ extern const eeconfig_t *eeconfig;
 #define DEFAULT_OPTIONS                                                        \
   {                                                                            \
       .xinput_enabled = false,                                                 \
+      .hid_gamepad_enabled = false,                                            \
       .high_polling_rate_enabled = true,                                       \
   }
 #endif
