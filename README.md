@@ -76,26 +76,11 @@ You can use an existing keyboard implementation as a reference. If your keyboard
 
 ### KBHE 75HE (STM32F723)
 
-The `kbhe-75he` target adds libhmk support for the specific KBHE 75HE keyboard.
-Its STM32F723 backend is the MCU support needed by that target, not a claim
-that every STM32F723 board works without its own keyboard definition and
-hardware validation. Pin assignments, the analog matrix, and the 16 MHz
-external oscillator belong to the KBHE keyboard configuration.
-
-KBHE connects USB to the integrated high-speed PHY on PB14/PB15 and selects
-`"port": "hs"` in `keyboards/kbhe-75he/keyboard.json`. The backend also implements
-`"port": "fs"` on PA11/PA12, selected through the normal generated board
-configuration and `tusb_config.h`. Selecting a different port does not reroute
-the physical connector: an FS board must actually be wired to PA11/PA12.
-
+The `kbhe-75he` target is for the KBHE 75HE keyboard with an STM32F723.
 Build with `python setup.py -k kbhe-75he`, then `pio run -e kbhe-75he`.
-This is an alternative firmware, not an update to the native KBHE firmware;
-its configuration format and configurator are different. Successful builds and
-comparison with ST/TinyUSB references do not replace end-to-end libhmk testing
-on the physical board, which remains pending.
-
-The host-only [CRC contract test](tests/stm32f723_crc/README.md) checks F7 HAL
-initialization and partial-word handling without flashing a keyboard.
+This alternative firmware is not compatible with native KBHE settings or
+KBHE Configurator. End-to-end libhmk validation on the physical keyboard
+remains pending.
 
 ### Hardware Driver Structure
 
