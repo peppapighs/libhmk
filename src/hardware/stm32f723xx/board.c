@@ -3,6 +3,14 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "hardware/hardware.h"
@@ -21,8 +29,8 @@ static void board_clock_init(void) {
   osc.HSEState = RCC_HSE_ON;
   osc.PLL.PLLState = RCC_PLL_ON;
   osc.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  /* Keep the VCO input at 2 MHz. With the KBHE 16 MHz HSE this produces a
-   * 432 MHz VCO, a 216 MHz CPU clock and a valid 48 MHz PLLQ output. */
+  // Keep the VCO input at 2 MHz. With the KBHE 16 MHz HSE this produces a
+  // 432 MHz VCO, a 216 MHz CPU clock and a valid 48 MHz PLLQ output.
   osc.PLL.PLLM = BOARD_HSE_VALUE / 2000000u;
   osc.PLL.PLLN = 216;
   osc.PLL.PLLP = RCC_PLLP_DIV2;
@@ -46,14 +54,37 @@ static void board_clock_init(void) {
 static void board_usb_init(void) {
   GPIO_InitTypeDef gpio = {0};
 
-#if !defined(BOARD_USB_HS)
-#error "The KBHE STM32F723 port requires the integrated high-speed PHY"
-#endif
+#if defined(BOARD_USB_FS)
+  RCC_PeriphCLKInitTypeDef periph_clk = {0};
 
+  // The FS PHY uses the 48 MHz PLLQ output, not the integrated HS PHY PLL.
+  periph_clk.PeriphClockSelection = RCC_PERIPHCLK_CLK48;
+  periph_clk.Clk48ClockSelection = RCC_CLK48SOURCE_PLL;
+  if (HAL_RCCEx_PeriphCLKConfig(&periph_clk) != HAL_OK)
+    board_error_handler();
+
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
+
+  gpio.Pin = GPIO_PIN_11 | GPIO_PIN_12;
+  gpio.Mode = GPIO_MODE_AF_PP;
+  gpio.Pull = GPIO_NOPULL;
+  gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio.Alternate = GPIO_AF10_OTG_FS;
+  HAL_GPIO_Init(GPIOA, &gpio);
+
+  // Bus-powered device: VBUS sensing is disabled, as in the F446 driver.
+  USB_OTG_FS->GCCFG &= ~USB_OTG_GCCFG_VBDEN;
+  USB_OTG_FS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOEN;
+  USB_OTG_FS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOVAL;
+
+  HAL_NVIC_SetPriority(OTG_FS_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
+#elif defined(BOARD_USB_HS)
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_OTGPHYC_CLK_ENABLE();
   __HAL_RCC_USB_OTG_HS_CLK_ENABLE();
-  /* Required by the DWC2 core reset path even when the embedded PHY is used. */
+  // Required by the DWC2 core reset path even when the embedded PHY is used.
   __HAL_RCC_USB_OTG_HS_ULPI_CLK_ENABLE();
 
 #if defined(RCC_AHB1LPENR_OTGHSULPILPEN)
@@ -67,14 +98,17 @@ static void board_usb_init(void) {
   gpio.Alternate = GPIO_AF12_OTG_HS_FS;
   HAL_GPIO_Init(GPIOB, &gpio);
 
-  /* KBHE does not route the optional PB13 VBUS-sense input. Advertise a valid
-   * B-device session in software, as required by TinyUSB's STM32F7 BSP. */
+  // KBHE does not route the optional PB13 VBUS-sense input. Advertise a valid
+  // B-device session in software, as required by TinyUSB's STM32F7 BSP.
   USB_OTG_HS->GCCFG &= ~USB_OTG_GCCFG_VBDEN;
   USB_OTG_HS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOEN;
   USB_OTG_HS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOVAL;
 
   HAL_NVIC_SetPriority(OTG_HS_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(OTG_HS_IRQn);
+#else
+#error "USB peripheral not defined"
+#endif
 }
 
 static void board_bootloader_jump(void) {
@@ -106,12 +140,11 @@ void board_init(void) {
     board_bootloader_jump();
   }
 
-  /* Match TinyUSB's STM32F7 policy: instruction cache materially reduces scan
-   * time, while data cache stays disabled so every current and future DMA
-   * buffer is coherent by default. Explicitly disable a cache that a chainload
-   * bootloader may have left enabled; CMSIS cleans it before switching it off.
-   * The ADC/RGB backends still perform aligned maintenance if a downstream
-   * board deliberately enables D-cache later. */
+  // Match TinyUSB's STM32F7 policy: instruction cache materially reduces scan
+  // time, while data cache stays disabled so DMA buffers are coherent by
+  // default. Explicitly disable a cache that a chainload bootloader may have
+  // left enabled; CMSIS cleans it before switching it off. The ADC backend
+  // still performs aligned maintenance if D-cache is enabled later.
   if ((SCB->CCR & SCB_CCR_DC_Msk) != 0u)
     SCB_DisableDCache();
   SCB_EnableICache();
@@ -155,4 +188,8 @@ void tusb_time_delay_ms_api(uint32_t ms) { HAL_Delay(ms); }
 
 void SysTick_Handler(void) { HAL_IncTick(); }
 
-void OTG_HS_IRQHandler(void) { tud_int_handler(1); }
+#if defined(BOARD_USB_FS)
+void OTG_FS_IRQHandler(void) { tud_int_handler(BOARD_TUD_RHPORT); }
+#elif defined(BOARD_USB_HS)
+void OTG_HS_IRQHandler(void) { tud_int_handler(BOARD_TUD_RHPORT); }
+#endif

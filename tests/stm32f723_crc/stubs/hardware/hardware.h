@@ -13,10 +13,5 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "hardware/hardware.h"
-
-#include "stm32f7xx_hal.h"
-
-void timer_init(void) {}
-
-uint32_t timer_read(void) { return HAL_GetTick(); }
+#pragma once
+void board_error_handler(void);
