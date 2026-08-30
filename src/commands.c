@@ -263,7 +263,7 @@ static void command_process(void) {
   }
   case COMMAND_SET_OPTIONS: {
     eeconfig_options_t options = in->options;
-    COMMAND_VERIFY(!(options.xinput_enabled && options.hid_gamepad_enabled));
+    COMMAND_VERIFY(options.gamepad_api <= GAMEPAD_API_HID);
     success = EECONFIG_WRITE(options, &options);
     break;
   }

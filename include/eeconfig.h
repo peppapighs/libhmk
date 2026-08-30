@@ -42,14 +42,18 @@ typedef struct __attribute__((packed)) {
   uint16_t initial_bottom_out_threshold;
 } eeconfig_calibration_t;
 
+typedef enum {
+  GAMEPAD_API_DISABLED = 0,
+  GAMEPAD_API_XINPUT = 1,
+  GAMEPAD_API_HID = 2,
+} gamepad_api_t;
+
 // Keyboard options configuration
 typedef union __attribute__((packed)) {
   struct __attribute__((packed)) {
-    // Whether the XInput interface is enabled
-    bool xinput_enabled : 1;
-    // Whether a standards-based HID gamepad interface is enabled. It is
-    // mutually exclusive with XInput and reuses a previously reserved bit.
-    bool hid_gamepad_enabled : 1;
+    // Mutually exclusive gamepad API. Value 3 is reserved and cannot be set
+    // through the configuration protocol.
+    gamepad_api_t gamepad_api : 2;
     // Whether 8kHz polling rate is enabled. Only applicable if USB HS is
     // enabled. If disabled, the 1kHz polling rate is used instead.
     bool high_polling_rate_enabled : 1;
@@ -62,29 +66,21 @@ typedef union __attribute__((packed)) {
 _Static_assert(sizeof(eeconfig_options_t) == sizeof(uint16_t),
                "Invalid eeconfig_options_t size");
 
-typedef enum {
-  GAMEPAD_API_DISABLED = 0,
-  GAMEPAD_API_XINPUT,
-  GAMEPAD_API_HID,
-} gamepad_api_t;
-
 static inline gamepad_api_t
 eeconfig_get_gamepad_api(const eeconfig_options_t *options) {
   if (options == NULL)
     return GAMEPAD_API_DISABLED;
-  /* Preserve the legacy bit's priority if corrupted data sets both bits. */
-  if (options->xinput_enabled)
-    return GAMEPAD_API_XINPUT;
-  return options->hid_gamepad_enabled ? GAMEPAD_API_HID
-                                      : GAMEPAD_API_DISABLED;
+  // Preserve the legacy bit's priority for reserved value 3 in corrupted
+  // storage. New configuration writes reject this value.
+  return options->gamepad_api <= GAMEPAD_API_HID ? options->gamepad_api
+                                               : GAMEPAD_API_XINPUT;
 }
 
 static inline bool
 eeconfig_set_gamepad_api(eeconfig_options_t *options, gamepad_api_t api) {
-  if (options == NULL || api > GAMEPAD_API_HID)
+  if (options == NULL || (unsigned int)api > GAMEPAD_API_HID)
     return false;
-  options->xinput_enabled = api == GAMEPAD_API_XINPUT;
-  options->hid_gamepad_enabled = api == GAMEPAD_API_HID;
+  options->gamepad_api = api;
   return true;
 }
 
@@ -155,8 +151,7 @@ extern const eeconfig_t *eeconfig;
 // Default global options
 #define DEFAULT_OPTIONS                                                        \
   {                                                                            \
-      .xinput_enabled = false,                                                 \
-      .hid_gamepad_enabled = false,                                            \
+      .gamepad_api = GAMEPAD_API_DISABLED,                                      \
       .high_polling_rate_enabled = true,                                       \
   }
 #endif

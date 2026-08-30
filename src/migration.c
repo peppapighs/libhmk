@@ -414,7 +414,7 @@ bool v1_5_profile_config_func(uint8_t profile, uint8_t *dst,
 }
 
 //--------------------------------------------------------------------+
-// v1.5 -> v1.6 Migration (HID gamepad option bit)
+// v1.5 -> v1.6 Migration (gamepad API selector)
 //--------------------------------------------------------------------+
 
 static bool v1_6_global_config_func(uint8_t *dst, const uint8_t *src) {
@@ -423,9 +423,12 @@ static bool v1_6_global_config_func(uint8_t *dst, const uint8_t *src) {
 
   uint8_t *const global_config = dst;
   migration_memcpy(&dst, &src, MIGRATION_V1_6_GLOBAL_CONFIG_SIZE);
-  /* Bit 1 was reserved, but the historical v1.2 -> v1.3 migration set it.
-   * Clear it so an upgrade can never enable the HID interface accidentally. */
-  ((eeconfig_t *)global_config)->options.hid_gamepad_enabled = false;
+  // Only bit 0 selected XInput in v1.5. Bit 1 was reserved, but the historical
+  // v1.2 -> v1.3 migration set it. Ignore it when building the API selector so
+  // an upgrade never enables HID accidentally, or disables existing XInput.
+  eeconfig_options_t *options = &((eeconfig_t *)global_config)->options;
+  options->gamepad_api = (options->raw & 1u) ? GAMEPAD_API_XINPUT
+                                          : GAMEPAD_API_DISABLED;
   return true;
 }
 

@@ -41,11 +41,12 @@ driver = utils.get_driver(keyboard)
 
 
 def ms_os_20_guid_def():
-    # A stable XInput interface identity avoids a new Windows device binding
-    # on every build while remaining unique for each VID/PID pair.
+    # This identifies an interface class, not an individual keyboard. Include
+    # the target name so different designs sharing VID/PID do not share a GUID;
+    # keep it stable across builds for applications discovering this interface.
     identity = (
-        f"https://github.com/peppapighs/libhmk/"
-        f"{kb_json.usb.vid}/{kb_json.usb.pid}/xinput"
+        f"https://github.com/peppapighs/libhmk/keyboards/{keyboard}/usb/"
+        f"{int(kb_json.usb.vid, 16):04x}:{int(kb_json.usb.pid, 16):04x}/xinput"
     )
     uuid = uuid5(NAMESPACE_URL, identity).hex.upper()
     guid = f"{{{uuid[:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:]}}}"
@@ -67,6 +68,8 @@ def keyboard_metadata_def():
         "numAdvancedKeys": kb_json.keyboard.num_advanced_keys,
         "numDynamicKeystrokeMaxBindings": kb_json.keyboard.num_dynamic_keystroke_max_bindings,
         "numMacroNodes": kb_json.keyboard.num_macro_nodes,
+        # Older firmware metadata has no HID capability. Configurators can use
+        # this additive field without guessing support from an option bit.
         "gamepadApis": ["xinput", "hid"],
         "layout": kb_json.layout.model_dump(exclude_none=True),
         "defaultKeymaps": utils.resolve_default_keymaps(kb_json),
