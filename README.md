@@ -61,42 +61,15 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
 
 ### Gamepad API
 
-The two-bit `gamepad_api_t` field in `eeconfig_options_t` selects one mutually
-exclusive API: `0` disables gamepad output, `1` selects legacy XInput, and `2`
-selects a standard TinyUSB HID gamepad. The options structure remains two bytes.
-HID is portable to operating systems without an XInput driver. Changing the
-selection changes the USB descriptors and takes effect after USB
-re-enumeration or reboot.
-
-The v1.5-to-v1.6 configuration migration constructs the selector from the old
-XInput bit only, ignoring the formerly reserved bit 1. Existing devices retain
-their XInput setting and cannot enable HID accidentally. Reserved value `3` is
-rejected by new raw-HID writes; malformed stored value `3` retains the legacy
-XInput fallback.
-
-Compressed keyboard metadata advertises `gamepadApis: ["xinput", "hid"]` so a
-configurator can discover HID support. If the field is absent, the configurator
-should offer only the legacy XInput API; it must not interpret the old reserved
-bit as HID support. This is independent of the configuration storage version.
-
-The Microsoft OS descriptor GUID is deterministic for each keyboard target,
-VID/PID pair, and XInput interface role. It identifies an interface class, not an
-individual physical keyboard; multiple units of the same target share it.
-Changing the build alone does not change it.
-
-Host regression tests (no keyboard required):
-
-```sh
-python3 tools/metadata_test.py
-cc -std=gnu11 -Wall -Wextra -Werror -Wsign-conversion -Wno-unused-parameter \
-  -I tests -I include tests/gamepad_options_test.c src/migration.c \
-  -o /tmp/libhmk-gamepad-options-test
-/tmp/libhmk-gamepad-options-test
-```
+Choose XInput, standard HID, or disable gamepad output. Both APIs share the
+same button and axis configuration. Changing the API takes effect after USB
+reconnection or reboot.
 
 ## Development
 
 The development branch is `dev`, which contains the latest features and bug fixes. The corresponding `dev` branch of [hmkconf](https://github.com/peppapighs/hmkconf/tree/dev) deployed at [https://dev.hmkconf.com](https://dev.hmkconf.com) is required to configure the `dev` branch of the firmware. To contribute, please create a pull request against the `dev` branch.
+
+See [tests/README.md](tests/README.md) for host regression tests.
 
 ### Developing a New Keyboard
 
