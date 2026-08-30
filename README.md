@@ -26,7 +26,7 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
 - [x] **Web Configurator**: Configure the firmware using [hmkconf](https://github.com/peppapighs/hmkconf) without needing to recompile the firmware.
 - [x] **Tick Rate**: Customizable tick rate for Tap-Hold and Dynamic Keystroke.
 - [x] **8kHz Polling Rate**: Support for 8kHz polling rate on some microcontrollers (e.g., AT32F405xx).
-- [x] **Gamepad**: Support for XInput gamepad mode, allowing the keyboard to be used as a game controller.
+- [x] **Gamepad**: Selectable XInput or standards-based HID gamepad output.
 
 ## Limitations
 
@@ -59,9 +59,17 @@ This repository contains libraries for building a Hall-effect keyboard firmware.
 
 6. Flash the firmware to your keyboard using your preferred method (e.g., DFU, ISP). If your keyboard has a DFU bootloader, you can set `upload_protocol = dfu` in `platformio.ini` and use the command `pio run --target upload` or the PlatformIO IDE's "Upload" option while the keyboard is in DFU mode. If your browser supports WebUSB, you can also use [WebUSB DFU](https://devanlai.github.io/webdfu/dfu-util/) (Recommended method).
 
+### Gamepad API
+
+Choose XInput, standard HID, or disable gamepad output. Both APIs share the
+same button and axis configuration. Changing the API takes effect after USB
+reconnection or reboot.
+
 ## Development
 
 The development branch is `dev`, which contains the latest features and bug fixes. The corresponding `dev` branch of [hmkconf](https://github.com/peppapighs/hmkconf/tree/dev) deployed at [https://dev.hmkconf.com](https://dev.hmkconf.com) is required to configure the `dev` branch of the firmware. To contribute, please create a pull request against the `dev` branch.
+
+See [tests/README.md](tests/README.md) for host regression tests.
 
 ### Developing a New Keyboard
 

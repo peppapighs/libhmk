@@ -16,7 +16,7 @@ import json
 import os
 import utils
 from schema.keyboard import KeyboardUSBPort
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid5
 
 METADATA_TEMPLATE = """#pragma once
 
@@ -41,7 +41,14 @@ driver = utils.get_driver(keyboard)
 
 
 def ms_os_20_guid_def():
-    uuid = uuid4().hex.upper()
+    # This identifies an interface class, not an individual keyboard. Include
+    # the target name so different designs sharing VID/PID do not share a GUID;
+    # keep it stable across builds for applications discovering this interface.
+    identity = (
+        f"https://github.com/peppapighs/libhmk/keyboards/{keyboard}/usb/"
+        f"{int(kb_json.usb.vid, 16):04x}:{int(kb_json.usb.pid, 16):04x}/xinput"
+    )
+    uuid = uuid5(NAMESPACE_URL, identity).hex.upper()
     guid = f"{{{uuid[:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:]}}}"
     guid_array = [f"U16_TO_U8S_LE('{x}')" for x in guid] + ["U16_TO_U8S_LE('\\0')"] * 2
 
@@ -61,12 +68,15 @@ def keyboard_metadata_def():
         "numAdvancedKeys": kb_json.keyboard.num_advanced_keys,
         "numDynamicKeystrokeMaxBindings": kb_json.keyboard.num_dynamic_keystroke_max_bindings,
         "numMacroNodes": kb_json.keyboard.num_macro_nodes,
+        # Older firmware metadata has no HID capability. Configurators can use
+        # this additive field without guessing support from an option bit.
+        "gamepadApis": ["xinput", "hid"],
         "layout": kb_json.layout.model_dump(exclude_none=True),
         "defaultKeymaps": utils.resolve_default_keymaps(kb_json),
     }
 
     uncompressed = json.dumps(metadata).encode("utf-8")
-    compressed = gzip.compress(uncompressed)
+    compressed = gzip.compress(uncompressed, mtime=0)
     print(f"Uncompressed metadata size: {len(uncompressed)} bytes")
     print(f"Compressed metadata size: {len(compressed)} bytes")
 

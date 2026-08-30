@@ -31,6 +31,26 @@
 
 static const uint8_t keyboard_metadata[] = {KEYBOARD_METADATA};
 
+static bool gamepad_options_are_valid(const gamepad_options_t *options) {
+  if (options == NULL)
+    return false;
+  for (uint8_t i = 0u; i < 3u; i++) {
+    if (options->analog_curve[i][0] >= options->analog_curve[i + 1u][0])
+      return false;
+  }
+  return true;
+}
+
+static bool gamepad_buttons_are_valid(const uint8_t *buttons, uint8_t len) {
+  if (buttons == NULL)
+    return false;
+  for (uint8_t i = 0u; i < len; i++) {
+    if (buttons[i] > GP_BUTTON_RT)
+      return false;
+  }
+  return true;
+}
+
 // `volatile` to prevent compiler optimizations
 static volatile bool command_request_pending;
 static volatile bool command_response_pending;
@@ -242,7 +262,9 @@ static void command_process(void) {
     break;
   }
   case COMMAND_SET_OPTIONS: {
-    success = EECONFIG_WRITE(options, &in->options);
+    eeconfig_options_t options = in->options;
+    COMMAND_VERIFY(options.gamepad_api <= GAMEPAD_API_HID);
+    success = EECONFIG_WRITE(options, &options);
     break;
   }
   case COMMAND_RESET_PROFILE: {
@@ -447,6 +469,7 @@ static void command_process(void) {
     COMMAND_VERIFY(p->offset < NUM_KEYS);
     COMMAND_VERIFY(p->len <= M_ARRAY_SIZE(p->gamepad_buttons) &&
                    p->len <= NUM_KEYS - p->offset);
+    COMMAND_VERIFY(gamepad_buttons_are_valid(p->gamepad_buttons, p->len));
 
     success = EECONFIG_WRITE_N(profiles[p->profile].gamepad_buttons[p->offset],
                                p->gamepad_buttons, sizeof(uint8_t) * p->len);
@@ -456,7 +479,6 @@ static void command_process(void) {
     const command_in_gamepad_options_t *p = &in->gamepad_options;
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
-
     out->gamepad_options = eeconfig->profiles[p->profile].gamepad_options;
     break;
   }
@@ -464,6 +486,7 @@ static void command_process(void) {
     const command_in_gamepad_options_t *p = &in->gamepad_options;
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
+    COMMAND_VERIFY(gamepad_options_are_valid(&p->gamepad_options));
 
     success = EECONFIG_WRITE(profiles[p->profile].gamepad_options,
                              &p->gamepad_options);
