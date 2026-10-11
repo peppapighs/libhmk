@@ -250,9 +250,9 @@ static void generate_desc_configuration(uint8_t *dst) {
   uint8_t polling_interval = 1;
 #if defined(BOARD_USB_HS)
   if (!eeconfig->options.high_polling_rate_enabled)
-    // If high polling rate is not enabled, use 1kHz polling rate = 8 frames for
-    // USB HS instead.
-    polling_interval = 8;
+    // If high polling rate is not enabled, use 1kHz polling rate = 2^(4 - 1) =
+    // 8 frames for USB HS instead.
+    polling_interval = 4;
 #endif
 
   const uint8_t src[] = {
