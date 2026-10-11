@@ -39,6 +39,8 @@
 
 #if defined(BOARD_USB_FS)
 #define BOARD_TUD_RHPORT 0
+// MCUs with both ports can support high speed, but port 0 only supports FS.
+#define CFG_TUD_MAX_SPEED OPT_MODE_FULL_SPEED
 #elif defined(BOARD_USB_HS)
 #define BOARD_TUD_RHPORT 1
 #else

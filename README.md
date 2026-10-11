@@ -74,6 +74,14 @@ You can use an existing keyboard implementation as a reference. If your keyboard
 
 ## Porting
 
+### KBHE 75HE (STM32F723)
+
+The `kbhe-75he` target is for the KBHE 75HE keyboard with an STM32F723.
+Build with `python setup.py -k kbhe-75he`, then `pio run -e kbhe-75he`.
+This alternative firmware is not compatible with native KBHE settings or
+KBHE Configurator. End-to-end libhmk validation on the physical keyboard
+remains pending.
+
 ### Hardware Driver Structure
 
 Hardware drivers follow this directory structure:
